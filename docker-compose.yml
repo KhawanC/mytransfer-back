@@ -9,6 +9,8 @@ services:
     ports:
       - "27017:27017"
     environment:
+      MONGO_INITDB_ROOT_USERNAME: mytransfer
+      MONGO_INITDB_ROOT_PASSWORD: mytransfer123
       MONGO_INITDB_DATABASE: mytransfer
     volumes:
       - mongodb-data:/data/db
@@ -16,7 +18,7 @@ services:
     networks:
       - mytransfer-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "-u", "mytransfer", "-p", "mytransfer123", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,12 +33,13 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    command: redis-server --requirepass redis123
     volumes:
       - redis-data:/data
     networks:
       - mytransfer-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
