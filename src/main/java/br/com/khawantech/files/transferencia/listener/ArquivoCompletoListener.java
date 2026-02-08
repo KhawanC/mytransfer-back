@@ -1,13 +1,14 @@
 package br.com.khawantech.files.transferencia.listener;
 
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import br.com.khawantech.files.transferencia.config.RabbitConfig;
 import br.com.khawantech.files.transferencia.dto.ArquivoCompletoEvent;
-import br.com.khawantech.files.transferencia.service.MinioService;
 import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
@@ -15,14 +16,17 @@ import org.springframework.stereotype.Component;
 public class ArquivoCompletoListener {
 
     private final WebSocketNotificationService notificationService;
-    private final MinioService minioService;
+
+    @Value("${app.base-url}")
+    private String baseUrl;
 
     @RabbitListener(queues = RabbitConfig.QUEUE_ARQUIVO_COMPLETO)
     public void handleArquivoCompleto(ArquivoCompletoEvent event) {
         log.info("Arquivo completo recebido: {} - {}", event.getArquivoId(), event.getNomeOriginal());
 
         try {
-            String urlDownload = minioService.gerarUrlDownload(event.getCaminhoMinio(), 60);
+            // Gera URL do proxy ao invés de URL presignada do MinIO
+            String urlDownload = baseUrl + "/api/files/download/" + event.getArquivoId();
 
             notificationService.notificarArquivoDisponivel(
                 event.getSessaoId(),

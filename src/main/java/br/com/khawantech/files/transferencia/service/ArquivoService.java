@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +50,9 @@ public class ArquivoService {
     private final RateLimitRedisService rateLimitRedisService;
     private final TransferenciaProperties properties;
     private final RabbitTemplate rabbitTemplate;
+
+    @Value("${app.base-url}")
+    private String baseUrl;
 
     @Transactional
     public IniciarUploadResponse iniciarUpload(IniciarUploadRequest request, String usuarioId) {
@@ -295,7 +299,9 @@ public class ArquivoService {
             throw new RuntimeException("Arquivo ainda não está disponível para download");
         }
 
-        return minioService.gerarUrlDownload(arquivo.getCaminhoMinio(), 60);
+        // Retorna URL do proxy ao invés de URL presignada do MinIO
+        // Isso oculta o IP/hostname do MinIO do cliente
+        return baseUrl + "/api/files/download/" + arquivoId;
     }
 
     public List<ArquivoResponse> listarArquivosSessao(String sessaoId, String usuarioId) {
@@ -338,7 +344,8 @@ public class ArquivoService {
     private ProgressoUploadResponse criarProgressoResponse(Arquivo arquivo, boolean completo) {
         String urlDownload = null;
         if (completo && arquivo.getCaminhoMinio() != null) {
-            urlDownload = minioService.gerarUrlDownload(arquivo.getCaminhoMinio(), 60);
+            // Usa URL do proxy ao invés de URL presignada do MinIO
+            urlDownload = baseUrl + "/api/files/download/" + arquivo.getId();
         }
 
         return ProgressoUploadResponse.builder()

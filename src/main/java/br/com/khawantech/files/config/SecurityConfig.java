@@ -1,9 +1,8 @@
 package br.com.khawantech.files.config;
 
-import br.com.khawantech.files.auth.filter.JwtAuthenticationFilter;
-import br.com.khawantech.files.auth.handler.OAuth2SuccessHandler;
-import br.com.khawantech.files.auth.service.CustomUserDetailsService;
-import lombok.RequiredArgsConstructor;
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,8 +23,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
+import br.com.khawantech.files.auth.filter.JwtAuthenticationFilter;
+import br.com.khawantech.files.auth.handler.OAuth2SuccessHandler;
+import br.com.khawantech.files.auth.service.CustomUserDetailsService;
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
@@ -94,7 +95,18 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(frontendUrl));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        
+        // Headers expostos para permitir downloads e informações de arquivos
+        configuration.setExposedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Disposition",
+            "Content-Type",
+            "Content-Length",
+            "Cache-Control",
+            "Pragma",
+            "Expires"
+        ));
+        
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
