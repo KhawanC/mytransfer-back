@@ -24,7 +24,7 @@ public class SessaoRedisService {
     public void salvarSessao(Sessao sessao) {
         String idKey = SESSAO_PREFIX + sessao.getId();
         String hashKey = SESSAO_HASH_PREFIX + sessao.getHashConexao();
-        Duration ttl = Duration.ofHours(properties.getCacheTtlHoras());
+        Duration ttl = Duration.ofMinutes((long) (properties.getCacheTtlHoras() * 60));
 
         sessaoRedisTemplate.opsForValue().set(idKey, sessao, ttl);
         sessaoRedisTemplate.opsForValue().set(hashKey, sessao, ttl);

@@ -1,7 +1,6 @@
 package br.com.khawantech.files.transferencia.service;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,7 +40,7 @@ public class SessaoService {
             .usuarioCriadorId(usuarioCriadorId)
             .status(StatusSessao.AGUARDANDO)
             .criadaEm(Instant.now())
-            .expiraEm(Instant.now().plus(properties.getSessaoTtlHoras(), ChronoUnit.HOURS))
+            .expiraEm(Instant.now().plusMillis(properties.getSessaoTtlMs()))
             .build();
 
         sessao.generateId();

@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "transferencia")
 public class TransferenciaProperties {
 
-    private long sessaoTtlHoras = 2;
-    private long cacheTtlHoras = 3;
+    private double sessaoTtlHoras = 2;
+    private double cacheTtlHoras = 3;
     private int maxArquivos = 50;
     private long maxTamanhoMb = 1024;
     private int chunkSizeMb = 5;
@@ -25,10 +25,10 @@ public class TransferenciaProperties {
     }
 
     public long getSessaoTtlMs() {
-        return sessaoTtlHoras * 60 * 60 * 1000;
+        return (long) (sessaoTtlHoras * 60 * 60 * 1000);
     }
 
     public long getCacheTtlMs() {
-        return cacheTtlHoras * 60 * 60 * 1000;
+        return (long) (cacheTtlHoras * 60 * 60 * 1000);
     }
 }

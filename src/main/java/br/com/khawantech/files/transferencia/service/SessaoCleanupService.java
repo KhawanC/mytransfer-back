@@ -79,7 +79,7 @@ public class SessaoCleanupService {
     }
 
     private void limparSessoesExpiradas() {
-        Instant limiteRemocao = Instant.now().minus(properties.getCacheTtlHoras(), ChronoUnit.HOURS);
+        Instant limiteRemocao = Instant.now().minusMillis(properties.getCacheTtlMs());
 
         List<Sessao> sessoesParaRemover = sessaoRepository.findByStatusIn(
             List.of(StatusSessao.EXPIRADA, StatusSessao.ENCERRADA)
