@@ -1,16 +1,17 @@
 package br.com.khawantech.files.user.service;
 
-import br.com.khawantech.files.user.entity.AuthProvider;
-import br.com.khawantech.files.user.entity.User;
-import br.com.khawantech.files.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Optional;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
+import br.com.khawantech.files.user.entity.AuthProvider;
+import br.com.khawantech.files.user.entity.User;
+import br.com.khawantech.files.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -19,13 +20,13 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    @Cacheable(value = "user-by-id", key = "#id")
+    @Cacheable(value = "user-by-id", key = "#id", unless = "#result.isEmpty()")
     public Optional<User> findById(String id) {
         log.debug("Fetching user by id: {} from database", id);
         return userRepository.findById(id);
     }
 
-    @Cacheable(value = "user-by-email", key = "#email")
+    @Cacheable(value = "user-by-email", key = "#email", unless = "#result.isEmpty()")
     public Optional<User> findByEmail(String email) {
         log.debug("Fetching user by email: {} from database", email);
         return userRepository.findByEmail(email);
