@@ -1,0 +1,117 @@
+services:
+  # ===========================================
+  # MongoDB Service
+  # ===========================================
+  mongodb:
+    image: mongo:7.0
+    container_name: mytransfer-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: mytransfer
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    networks:
+      - mytransfer-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===========================================
+  # Redis Service
+  # ===========================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: mytransfer-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mytransfer-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ===========================================
+  # RabbitMQ Service
+  # ===========================================
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: mytransfer-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - rabbitmq-logs:/var/log/rabbitmq
+    networks:
+      - mytransfer-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===========================================
+  # MinIO Service (Object Storage)
+  # ===========================================
+  minio:
+    image: minio/minio:latest
+    container_name: mytransfer-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # API port
+      - "9001:9001"   # Console port
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - mytransfer-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# ===========================================
+# Volumes for Data Persistence
+# ===========================================
+volumes:
+  mongodb-data:
+    driver: local
+  mongodb-config:
+    driver: local
+  redis-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  rabbitmq-logs:
+    driver: local
+  minio-data:
+    driver: local
+
+# ===========================================
+# Network Configuration
+# ===========================================
+networks:
+  mytransfer-network:
+    driver: bridge

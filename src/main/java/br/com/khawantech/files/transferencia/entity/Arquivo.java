@@ -1,0 +1,82 @@
+package br.com.khawantech.files.transferencia.entity;
+
+import java.io.Serializable;
+import java.time.Instant;
+import java.util.UUID;
+
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Document(collection = "arquivos")
+@CompoundIndexes({
+    @CompoundIndex(name = "sessao_status_idx", def = "{'sessaoId': 1, 'status': 1}"),
+    @CompoundIndex(name = "hash_conteudo_idx", def = "{'hashConteudo': 1}")
+})
+public class Arquivo implements Serializable {
+
+    @Id
+    private String id;
+
+    @Indexed
+    private String sessaoId;
+
+    private String nomeOriginal;
+
+    private String hashConteudo;
+
+    private long tamanhoBytes;
+
+    private String tipoMime;
+
+    private String caminhoMinio;
+
+    @Indexed
+    @Builder.Default
+    private StatusArquivo status = StatusArquivo.PENDENTE;
+
+    private String remetenteId;
+
+    private int totalChunks;
+
+    private int chunksRecebidos;
+
+    @Builder.Default
+    private double progressoUpload = 0.0;
+
+    @CreatedDate
+    private Instant criadoEm;
+
+    @LastModifiedDate
+    private Instant atualizadoEm;
+
+    public void generateId() {
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString();
+        }
+    }
+
+    public void atualizarProgresso(int chunksRecebidos) {
+        this.chunksRecebidos = chunksRecebidos;
+        if (this.totalChunks > 0) {
+            this.progressoUpload = (double) chunksRecebidos / totalChunks * 100.0;
+        }
+    }
+
+    public boolean uploadCompleto() {
+        return this.chunksRecebidos >= this.totalChunks && this.totalChunks > 0;
+    }
+}
