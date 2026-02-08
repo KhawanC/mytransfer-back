@@ -72,10 +72,10 @@ public class ArquivoService {
             );
         }
 
-        Optional<Arquivo> arquivoExistente = verificarDeduplicacao(request.getHashConteudo());
+        Optional<Arquivo> arquivoExistente = verificarDeduplicacao(request.getSessaoId(), request.getHashConteudo());
         if (arquivoExistente.isPresent()) {
             Arquivo existente = arquivoExistente.get();
-            log.info("Arquivo duplicado detectado: {}", existente.getId());
+            log.info("Arquivo duplicado detectado na mesma sessão: {}", existente.getId());
 
             return IniciarUploadResponse.builder()
                 .arquivoId(existente.getId())
@@ -330,13 +330,23 @@ public class ArquivoService {
             .orElseThrow(() -> new RuntimeException("Arquivo não encontrado: " + arquivoId));
     }
 
-    private Optional<Arquivo> verificarDeduplicacao(String hashConteudo) {
+    /**
+     * Verifica se já existe um arquivo completo com o mesmo hash APENAS na mesma sessão.
+     * Arquivos duplicados em sessões diferentes ou com status diferente de COMPLETO são ignorados.
+     */
+    private Optional<Arquivo> verificarDeduplicacao(String sessaoId, String hashConteudo) {
+        // Busca no cache Redis primeiro (filtrado por sessão)
         Optional<Arquivo> arquivoCache = arquivoRedisService.buscarPorHash(hashConteudo);
-        if (arquivoCache.isPresent() && arquivoCache.get().getStatus() == StatusArquivo.COMPLETO) {
-            return arquivoCache;
+        if (arquivoCache.isPresent()) {
+            Arquivo cached = arquivoCache.get();
+            // Verifica se é da mesma sessão E está completo
+            if (cached.getSessaoId().equals(sessaoId) && cached.getStatus() == StatusArquivo.COMPLETO) {
+                return arquivoCache;
+            }
         }
 
-        return arquivoRepository.findByHashConteudo(hashConteudo)
+        // Busca no MongoDB filtrando por sessão + hash + status COMPLETO
+        return arquivoRepository.findBySessaoIdAndHashConteudo(sessaoId, hashConteudo)
             .filter(a -> a.getStatus() == StatusArquivo.COMPLETO);
     }
 
