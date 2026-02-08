@@ -49,7 +49,9 @@ public class SecurityConfig {
         "/actuator/health",
         "/swagger-ui/**",
         "/v3/api-docs/**",
-        "/ws/**"
+        "/ws/**",
+        "/api/files/d/**",    // Download com token temporário
+        "/api/files/p/**"     // Preview com token temporário
     };
 
     @Bean

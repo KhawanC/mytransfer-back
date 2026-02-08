@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import br.com.khawantech.files.transferencia.config.RabbitConfig;
 import br.com.khawantech.files.transferencia.dto.ArquivoCompletoEvent;
+import br.com.khawantech.files.transferencia.service.DownloadTokenService;
 import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ArquivoCompletoListener {
 
     private final WebSocketNotificationService notificationService;
+    private final DownloadTokenService downloadTokenService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -25,8 +27,9 @@ public class ArquivoCompletoListener {
         log.info("Arquivo completo recebido: {} - {}", event.getArquivoId(), event.getNomeOriginal());
 
         try {
-            // Gera URL do proxy ao invés de URL presignada do MinIO
-            String urlDownload = baseUrl + "/api/files/download/" + event.getArquivoId();
+            // Gera token temporário para download
+            String token = downloadTokenService.gerarToken(event.getArquivoId(), event.getRemetenteId());
+            String urlDownload = baseUrl + "/api/files/d/" + token;
 
             notificationService.notificarArquivoDisponivel(
                 event.getSessaoId(),

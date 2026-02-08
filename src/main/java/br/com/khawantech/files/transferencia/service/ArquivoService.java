@@ -50,6 +50,7 @@ public class ArquivoService {
     private final RateLimitRedisService rateLimitRedisService;
     private final TransferenciaProperties properties;
     private final RabbitTemplate rabbitTemplate;
+    private final DownloadTokenService downloadTokenService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -299,9 +300,11 @@ public class ArquivoService {
             throw new RuntimeException("Arquivo ainda não está disponível para download");
         }
 
-        // Retorna URL do proxy ao invés de URL presignada do MinIO
-        // Isso oculta o IP/hostname do MinIO do cliente
-        return baseUrl + "/api/files/download/" + arquivoId;
+        // Gera token temporário para download
+        String token = downloadTokenService.gerarToken(arquivoId, usuarioId);
+        
+        // Retorna URL pública com token (válido por 5 minutos)
+        return baseUrl + "/api/files/d/" + token;
     }
 
     public List<ArquivoResponse> listarArquivosSessao(String sessaoId, String usuarioId) {
@@ -344,8 +347,9 @@ public class ArquivoService {
     private ProgressoUploadResponse criarProgressoResponse(Arquivo arquivo, boolean completo) {
         String urlDownload = null;
         if (completo && arquivo.getCaminhoMinio() != null) {
-            // Usa URL do proxy ao invés de URL presignada do MinIO
-            urlDownload = baseUrl + "/api/files/download/" + arquivo.getId();
+            // Gera token temporário para download
+            String token = downloadTokenService.gerarToken(arquivo.getId(), arquivo.getRemetenteId());
+            urlDownload = baseUrl + "/api/files/d/" + token;
         }
 
         return ProgressoUploadResponse.builder()
