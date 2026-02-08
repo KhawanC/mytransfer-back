@@ -1,5 +1,13 @@
 package br.com.khawantech.files.transferencia.service;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import br.com.khawantech.files.transferencia.config.TransferenciaProperties;
 import br.com.khawantech.files.transferencia.entity.Arquivo;
 import br.com.khawantech.files.transferencia.entity.Sessao;
@@ -9,13 +17,6 @@ import br.com.khawantech.files.transferencia.repository.ChunkArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.SessaoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
 
 @Slf4j
 @Service
