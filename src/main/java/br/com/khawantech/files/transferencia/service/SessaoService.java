@@ -33,6 +33,7 @@ public class SessaoService {
     private final RabbitTemplate rabbitTemplate;
     private final LockRedisService lockRedisService;
     private final UserRepository userRepository;
+    private final WebSocketNotificationService webSocketNotificationService;
 
     @Transactional
     public SessaoResponse criarSessao(String usuarioCriadorId) {
@@ -41,6 +42,7 @@ public class SessaoService {
             .status(StatusSessao.AGUARDANDO)
             .criadaEm(Instant.now())
             .expiraEm(Instant.now().plusMillis(properties.getSessaoTtlMs()))
+            .hashExpiraEm(Instant.now().plusSeconds(20))
             .build();
 
         sessao.generateId();
@@ -61,6 +63,7 @@ public class SessaoService {
             .usuarioCriadorId(sessao.getUsuarioCriadorId())
             .criadaEm(sessao.getCriadaEm())
             .expiraEm(sessao.getExpiraEm())
+            .hashExpiraEm(sessao.getHashExpiraEm())
             .build();
     }
 
@@ -102,6 +105,13 @@ public class SessaoService {
             sessaoRedisService.atualizarSessao(sessao);
 
             publicarAtualizacaoSessao(sessao, StatusSessao.AGUARDANDO, "Usuário solicitou entrada na sessão");
+            
+            // Notifica o criador especificamente para redirecioná-lo à sessão
+            webSocketNotificationService.notificarSolicitacaoEntradaCriador(
+                sessao.getUsuarioCriadorId(),
+                sessao.getId(),
+                usuario.getName()
+            );
 
             log.info("Usuário {} solicitou entrada na sessão {} e está aguardando aprovação", usuarioConvidadoId, sessao.getId());
 
@@ -211,30 +221,32 @@ public class SessaoService {
 
     public Sessao buscarPorId(String sessaoId) {
         Optional<Sessao> sessaoCache = sessaoRedisService.buscarPorId(sessaoId);
-        if (sessaoCache.isPresent()) {
-            return sessaoCache.get();
+        Sessao sessao = sessaoCache.orElseGet(() ->
+            sessaoRepository.findById(sessaoId)
+                .orElseThrow(() -> new SessaoNaoEncontradaException("Sessão não encontrada: " + sessaoId))
+        );
+        
+        // Verifica se o hash expirou e renova automaticamente
+        if (sessao.hashExpirado()) {
+            sessao = renovarHashSessao(sessao);
         }
-
-        return sessaoRepository.findById(sessaoId)
-            .map(sessao -> {
-                sessaoRedisService.salvarSessao(sessao);
-                return sessao;
-            })
-            .orElseThrow(() -> new SessaoNaoEncontradaException("Sessão não encontrada: " + sessaoId));
+        
+        return sessao;
     }
 
     public Sessao buscarPorHash(String hashConexao) {
         Optional<Sessao> sessaoCache = sessaoRedisService.buscarPorHash(hashConexao);
-        if (sessaoCache.isPresent()) {
-            return sessaoCache.get();
+        Sessao sessao = sessaoCache.orElseGet(() ->
+            sessaoRepository.findByHashConexao(hashConexao)
+                .orElseThrow(() -> new SessaoNaoEncontradaException("Sessão não encontrada com hash: " + hashConexao))
+        );
+        
+        // Verifica se o hash expirou e renova automaticamente
+        if (sessao.hashExpirado()) {
+            sessao = renovarHashSessao(sessao);
         }
-
-        return sessaoRepository.findByHashConexao(hashConexao)
-            .map(sessao -> {
-                sessaoRedisService.salvarSessao(sessao);
-                return sessao;
-            })
-            .orElseThrow(() -> new SessaoNaoEncontradaException("Sessão não encontrada com hash: " + hashConexao));
+        
+        return sessao;
     }
 
     public void validarSessaoAtiva(Sessao sessao) {
@@ -324,6 +336,45 @@ public class SessaoService {
             event
         );
     }
+    
+    @Transactional
+    public Sessao renovarHashSessao(Sessao sessao) {
+        String hashAntigo = sessao.getHashConexao();
+        
+        // Invalidar hash antigo no Redis
+        sessaoRedisService.invalidarSessao(sessao.getId(), hashAntigo);
+        
+        // Gerar novo hash
+        sessao.regenerateHashConexao();
+        
+        // Salvar no banco e Redis
+        sessao = sessaoRepository.save(sessao);
+        sessaoRedisService.salvarSessao(sessao);
+        
+        // Notificar via WebSocket sobre o hash atualizado
+        webSocketNotificationService.notificarHashAtualizado(
+            sessao.getId(), 
+            sessao.getHashConexao(), 
+            sessao.getHashExpiraEm()
+        );
+        
+        log.info("Hash da sessão {} renovado de {} para {}", 
+            sessao.getId(), hashAntigo, sessao.getHashConexao());
+            
+        return sessao;
+    }
+    
+    @Transactional
+    public void renovarHashSessoes() {
+        List<StatusSessao> statusesAtivos = List.of(StatusSessao.AGUARDANDO, StatusSessao.AGUARDANDO_APROVACAO, StatusSessao.ATIVA);
+        List<Sessao> sessoesAtivas = sessaoRepository.findByStatusIn(statusesAtivos);
+        
+        for (Sessao sessao : sessoesAtivas) {
+            if (sessao.hashExpirado()) {
+                renovarHashSessao(sessao);
+            }
+        }
+    }
 
     public List<SessaoResponse> listarSessoesUsuario(String usuarioId) {
         List<Sessao> sessoes = sessaoRepository.findSessoesDoUsuario(usuarioId);
@@ -351,6 +402,7 @@ public class SessaoService {
             .totalArquivosTransferidos(sessao.getTotalArquivosTransferidos())
             .criadaEm(sessao.getCriadaEm())
             .expiraEm(sessao.getExpiraEm())
+            .hashExpiraEm(sessao.getHashExpiraEm())
             .build();
     }
 }

@@ -50,6 +50,8 @@ public class Sessao implements Serializable {
     private Instant criadaEm;
 
     private Instant expiraEm;
+    
+    private Instant hashExpiraEm;
 
     private Instant encerradaEm;
 
@@ -68,6 +70,17 @@ public class Sessao implements Serializable {
             int codigo = 10000000 + new java.util.Random().nextInt(90000000);
             this.hashConexao = String.valueOf(codigo);
         }
+    }
+    
+    public void regenerateHashConexao() {
+        // Gera um novo código numérico de 8 dígitos (10000000 a 99999999)
+        int codigo = 10000000 + new java.util.Random().nextInt(90000000);
+        this.hashConexao = String.valueOf(codigo);
+        this.hashExpiraEm = Instant.now().plusSeconds(20);
+    }
+    
+    public boolean hashExpirado() {
+        return this.hashExpiraEm != null && Instant.now().isAfter(this.hashExpiraEm);
     }
 
     public boolean podeReceberArquivos(int limiteArquivos) {

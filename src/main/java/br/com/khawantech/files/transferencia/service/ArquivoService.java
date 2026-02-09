@@ -31,6 +31,7 @@ import br.com.khawantech.files.transferencia.exception.ChunkInvalidoException;
 import br.com.khawantech.files.transferencia.exception.HashInvalidoException;
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.ChunkArquivoRepository;
+import br.com.khawantech.files.transferencia.util.FileNameSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,6 +61,10 @@ public class ArquivoService {
         if (!rateLimitRedisService.verificarLimiteRequisicoes(usuarioId)) {
             throw new RuntimeException("Rate limit excedido. Aguarde alguns segundos.");
         }
+
+        // ✅ CORREÇÃO DE SEGURANÇA: Sanitizar nome do arquivo
+        String nomeSanitizado = FileNameSanitizer.sanitize(request.getNomeArquivo());
+        request.setNomeArquivo(nomeSanitizado);
 
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
         sessaoService.validarSessaoAtiva(sessao);

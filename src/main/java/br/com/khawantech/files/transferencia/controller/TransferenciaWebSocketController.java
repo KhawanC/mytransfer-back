@@ -17,9 +17,11 @@ import br.com.khawantech.files.transferencia.dto.IniciarUploadResponse;
 import br.com.khawantech.files.transferencia.dto.ProgressoUploadResponse;
 import br.com.khawantech.files.transferencia.dto.RejeitarEntradaRequest;
 import br.com.khawantech.files.transferencia.dto.SessaoResponse;
+import br.com.khawantech.files.transferencia.entity.Sessao;
 import br.com.khawantech.files.transferencia.service.ArquivoService;
 import br.com.khawantech.files.transferencia.service.SessaoService;
 import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
+import br.com.khawantech.files.transferencia.util.FileNameSanitizer;
 import br.com.khawantech.files.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +64,10 @@ public class TransferenciaWebSocketController {
         String usuarioId = getUsuarioId(headerAccessor);
         log.info("WebSocket: Usuário {} aprovando entrada na sessão {}", usuarioId, request.getSessaoId());
 
+        // ✅ CORREÇÃO DE SEGURANÇA: Validar permissões antes de processar
+        Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
+        sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
+
         SessaoResponse response = sessaoService.aprovarEntrada(request.getSessaoId(), usuarioId);
 
         return response;
@@ -74,6 +80,10 @@ public class TransferenciaWebSocketController {
         String usuarioId = getUsuarioId(headerAccessor);
         log.info("WebSocket: Usuário {} rejeitando entrada na sessão {}", usuarioId, request.getSessaoId());
 
+        // ✅ CORREÇÃO DE SEGURANÇA: Validar permissões antes de processar
+        Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
+        sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
+
         sessaoService.rejeitarEntrada(request.getSessaoId(), usuarioId);
     }
 
@@ -83,6 +93,10 @@ public class TransferenciaWebSocketController {
                                SimpMessageHeaderAccessor headerAccessor) {
         String usuarioId = getUsuarioId(headerAccessor);
         log.info("WebSocket: Usuário {} encerrando sessão: {}", usuarioId, request.getSessaoId());
+
+        // ✅ CORREÇÃO DE SEGURANÇA: Validar permissões antes de processar
+        Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
+        sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
         sessaoService.encerrarSessao(request.getSessaoId(), usuarioId);
         notificationService.notificarSessaoEncerrada(request.getSessaoId(), "Sessão encerrada pelo usuário");
@@ -94,6 +108,15 @@ public class TransferenciaWebSocketController {
                                                 SimpMessageHeaderAccessor headerAccessor) {
         String usuarioId = getUsuarioId(headerAccessor);
         log.info("WebSocket: Iniciando upload para usuário: {} na sessão: {}", usuarioId, request.getSessaoId());
+
+        // ✅ CORREÇÃO DE SEGURANÇA: Validar permissões antes de processar
+        Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
+        sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
+        
+        // ✅ CORREÇÃO DE SEGURANÇA: Sanitizar nome do arquivo
+        String nomeOriginal = request.getNomeArquivo();
+        String nomeSanitizado = FileNameSanitizer.sanitize(nomeOriginal);
+        request.setNomeArquivo(nomeSanitizado);
 
         IniciarUploadResponse response = arquivoService.iniciarUpload(request, usuarioId);
 
@@ -113,6 +136,16 @@ public class TransferenciaWebSocketController {
     public ProgressoUploadResponse enviarChunk(@Payload EnviarChunkRequest request,
                                                 SimpMessageHeaderAccessor headerAccessor) {
         String usuarioId = getUsuarioId(headerAccessor);
+
+        // ✅ CORREÇÃO DE SEGURANÇA CRÍTICA: Validar permissões antes de processar chunk
+        // Vulnerabilidade: usuário poderia enviar chunks para sessões de outros usuários
+        Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
+        sessaoService.validarSessaoAtiva(sessao);
+        sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
+        
+        // Log de segurança
+        log.debug("WebSocket Chunk: Usuário {} enviando chunk {} do arquivo {} na sessão {}", 
+                 usuarioId, request.getNumeroChunk(), request.getArquivoId(), request.getSessaoId());
 
         ProgressoUploadResponse response = arquivoService.processarChunk(request, usuarioId);
 

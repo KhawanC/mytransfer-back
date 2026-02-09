@@ -57,6 +57,18 @@ public class WebSocketNotificationService {
 
         notificarSessao(sessaoId, notificacao);
     }
+    
+    public void notificarSolicitacaoEntradaCriador(String usuarioCriadorId, String sessaoId, String nomeUsuario) {
+        NotificacaoResponse notificacao = NotificacaoResponse.builder()
+            .tipo(NotificacaoResponse.TipoNotificacao.SOLICITACAO_ENTRADA_CRIADOR)
+            .sessaoId(sessaoId)
+            .mensagem(nomeUsuario + " solicitou entrada na sessão")
+            .dados(sessaoId)
+            .timestamp(Instant.now())
+            .build();
+
+        notificarUsuario(usuarioCriadorId, notificacao);
+    }
 
     public void notificarEntradaAprovada(String sessaoId, String usuarioConvidadoId) {
         NotificacaoResponse notificacao = NotificacaoResponse.builder()
@@ -114,6 +126,18 @@ public class WebSocketNotificationService {
 
         notificarSessao(sessaoId, notificacao);
     }
+    
+    public void notificarHashAtualizado(String sessaoId, String novoHash, Instant hashExpiraEm) {
+        NotificacaoResponse notificacao = NotificacaoResponse.builder()
+            .tipo(NotificacaoResponse.TipoNotificacao.HASH_ATUALIZADO)
+            .sessaoId(sessaoId)
+            .mensagem("Hash da sessão foi atualizado")
+            .dados(new HashData(novoHash, hashExpiraEm))
+            .timestamp(Instant.now())
+            .build();
+
+        notificarSessao(sessaoId, notificacao);
+    }
 
     public void notificarUploadIniciado(String sessaoId, String arquivoId, String nomeArquivo) {
         NotificacaoResponse notificacao = NotificacaoResponse.builder()
@@ -166,4 +190,6 @@ public class WebSocketNotificationService {
     public record ArquivoDisponivel(String arquivoId, String nomeArquivo, String urlDownload) {}
     
     public record SolicitacaoEntrada(String usuarioConvidadoPendenteId, String nomeUsuario) {}
+    
+    public record HashData(String hash, Instant expiraEm) {}
 }

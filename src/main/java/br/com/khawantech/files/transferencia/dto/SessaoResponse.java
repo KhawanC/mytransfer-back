@@ -25,4 +25,5 @@ public class SessaoResponse {
     private int totalArquivosTransferidos;
     private Instant criadaEm;
     private Instant expiraEm;
+    private Instant hashExpiraEm;
 }
