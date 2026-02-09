@@ -101,6 +101,14 @@ public class TransferenciaController {
             .totalArquivosTransferidos(sessao.getTotalArquivosTransferidos())
             .criadaEm(sessao.getCriadaEm())
             .expiraEm(sessao.getExpiraEm())
+            .hashExpiraEm(sessao.getHashExpiraEm())
+            .podeUpload(sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.ATIVA)
+            .podeEncerrar(sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.ATIVA || 
+                         sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO || 
+                         sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO_APROVACAO)
+            .estaAtiva(sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.ATIVA || 
+                      sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO || 
+                      sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO_APROVACAO)
             .build());
     }
 

@@ -67,7 +67,7 @@ public class ArquivoService {
         request.setNomeArquivo(nomeSanitizado);
 
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
-        sessaoService.validarSessaoAtiva(sessao);
+        sessaoService.validarPodeUpload(sessao);
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
         sessaoService.validarLimiteArquivos(sessao);
 

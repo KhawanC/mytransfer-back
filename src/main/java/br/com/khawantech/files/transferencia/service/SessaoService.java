@@ -37,6 +37,9 @@ public class SessaoService {
 
     @Transactional
     public SessaoResponse criarSessao(String usuarioCriadorId) {
+        // Valida se o usuário já possui uma sessão ativa
+        validarUsuarioSemSessaoAtiva(usuarioCriadorId);
+        
         Sessao sessao = Sessao.builder()
             .usuarioCriadorId(usuarioCriadorId)
             .status(StatusSessao.AGUARDANDO)
@@ -55,16 +58,7 @@ public class SessaoService {
 
         log.info("Sessão criada: {} por usuário: {}", sessao.getId(), usuarioCriadorId);
 
-        return SessaoResponse.builder()
-            .id(sessao.getId())
-            .hashConexao(sessao.getHashConexao())
-            .qrCodeBase64(qrCodeBase64)
-            .status(sessao.getStatus())
-            .usuarioCriadorId(sessao.getUsuarioCriadorId())
-            .criadaEm(sessao.getCriadaEm())
-            .expiraEm(sessao.getExpiraEm())
-            .hashExpiraEm(sessao.getHashExpiraEm())
-            .build();
+        return toSessaoResponse(sessao, qrCodeBase64, usuarioCriadorId);
     }
 
     @Transactional
@@ -79,7 +73,7 @@ public class SessaoService {
         if (jaEstaAssociado) {
             log.info("Usuário {} já está associado à sessão {}, retornando sessão existente", 
                      usuarioConvidadoId, sessao.getId());
-            return toSessaoResponse(sessao, null);
+            return toSessaoResponse(sessao, null, usuarioConvidadoId);
         }
 
         // Se não está associado, valida a entrada normalmente
@@ -115,7 +109,7 @@ public class SessaoService {
 
             log.info("Usuário {} solicitou entrada na sessão {} e está aguardando aprovação", usuarioConvidadoId, sessao.getId());
 
-            return toSessaoResponse(sessao, null);
+            return toSessaoResponse(sessao, null, usuarioConvidadoId);
         } finally {
             lockRedisService.liberarLock(lockRedisService.getLockSessao(sessao.getId()), lockId);
         }
@@ -155,7 +149,7 @@ public class SessaoService {
 
             log.info("Entrada do usuário {} aprovada na sessão {}", sessao.getUsuarioConvidadoId(), sessaoId);
 
-            return toSessaoResponse(sessao, null);
+            return toSessaoResponse(sessao, null, usuarioCriadorId);
         } finally {
             lockRedisService.liberarLock(lockRedisService.getLockSessao(sessao.getId()), lockId);
         }
@@ -261,6 +255,14 @@ public class SessaoService {
             expirarSessao(sessao);
             throw new SessaoExpiradaException("Sessão expirada: " + sessao.getId());
         }
+    }
+    
+    public void validarPodeUpload(Sessao sessao) {
+        if (sessao.getStatus() != StatusSessao.ATIVA) {
+            throw new IllegalStateException("Upload só é permitido em sessões ativas. Status atual: " + sessao.getStatus());
+        }
+        
+        validarSessaoAtiva(sessao);
     }
 
     public void validarLimiteArquivos(Sessao sessao) {
@@ -385,11 +387,42 @@ public class SessaoService {
         log.info("Listando {} sessões para usuário {}", sessoes.size(), usuarioId);
         
         return sessoes.stream()
-            .map(sessao -> toSessaoResponse(sessao, null))
+            .map(sessao -> toSessaoResponse(sessao, null, usuarioId))
             .toList();
     }
+    
+    private void validarUsuarioSemSessaoAtiva(String usuarioId) {
+        List<StatusSessao> statusesAtivos = List.of(StatusSessao.AGUARDANDO, StatusSessao.AGUARDANDO_APROVACAO, StatusSessao.ATIVA);
+        
+        // Busca no MongoDB se o usuário é criador de alguma sessão ativa
+        for (StatusSessao status : statusesAtivos) {
+            List<Sessao> sessoesComoCriador = sessaoRepository.findByUsuarioCriadorIdAndStatus(usuarioId, status);
+            if (!sessoesComoCriador.isEmpty()) {
+                throw new IllegalStateException("Você já possui uma sessão ativa");
+            }
+        }
+        
+        // Busca se o usuário é convidado em alguma sessão ativa
+        for (StatusSessao status : statusesAtivos) {
+            List<Sessao> sessoesComoConvidado = sessaoRepository.findByUsuarioConvidadoIdAndStatus(usuarioId, status);
+            if (!sessoesComoConvidado.isEmpty()) {
+                throw new IllegalStateException("Você já possui uma sessão ativa");
+            }
+        }
+    }
 
-    private SessaoResponse toSessaoResponse(Sessao sessao, String qrCodeBase64) {
+    private SessaoResponse toSessaoResponse(Sessao sessao, String qrCodeBase64, String usuarioId) {
+        // Calcula flags de permissão
+        boolean estaAtiva = sessao.getStatus() == StatusSessao.ATIVA || 
+                           sessao.getStatus() == StatusSessao.AGUARDANDO || 
+                           sessao.getStatus() == StatusSessao.AGUARDANDO_APROVACAO;
+        
+        boolean podeUpload = sessao.getStatus() == StatusSessao.ATIVA;
+        
+        boolean podeEncerrar = estaAtiva && usuarioId != null && 
+                              (usuarioId.equals(sessao.getUsuarioCriadorId()) || 
+                               usuarioId.equals(sessao.getUsuarioConvidadoId()));
+        
         return SessaoResponse.builder()
             .id(sessao.getId())
             .hashConexao(sessao.getHashConexao())
@@ -403,6 +436,9 @@ public class SessaoService {
             .criadaEm(sessao.getCriadaEm())
             .expiraEm(sessao.getExpiraEm())
             .hashExpiraEm(sessao.getHashExpiraEm())
+            .podeUpload(podeUpload)
+            .podeEncerrar(podeEncerrar)
+            .estaAtiva(estaAtiva)
             .build();
     }
 }

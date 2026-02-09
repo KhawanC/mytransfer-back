@@ -26,4 +26,9 @@ public class SessaoResponse {
     private Instant criadaEm;
     private Instant expiraEm;
     private Instant hashExpiraEm;
+    
+    // Flags de permissão calculadas pelo backend
+    private boolean podeUpload;
+    private boolean podeEncerrar;
+    private boolean estaAtiva;
 }
