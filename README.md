@@ -1,8 +1,8 @@
-# MyTransfer - Backend
+# MePassa - Backend
 
 ## 📋 Sobre o Projeto
 
-O **MyTransfer Backend** é uma API REST robusta desenvolvida em Spring Boot para gerenciar transferências de arquivos peer-to-peer (P2P) em tempo real. O sistema permite que usuários criem sessões de transferência, compartilhem via QR Code ou hash, e transfiram arquivos de forma segura e eficiente.
+O **MePassa** é uma API REST robusta desenvolvida em Spring Boot para gerenciar transferências de arquivos peer-to-peer (P2P) em tempo real. O sistema permite que usuários criem sessões de transferência, compartilhem via QR Code ou hash, e transfiram arquivos de forma segura e eficiente.
 
 ## 🎯 Propósito
 
