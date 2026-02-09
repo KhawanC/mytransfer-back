@@ -62,7 +62,6 @@ public class ArquivoService {
             throw new RuntimeException("Rate limit excedido. Aguarde alguns segundos.");
         }
 
-        // ✅ CORREÇÃO DE SEGURANÇA: Sanitizar nome do arquivo
         String nomeSanitizado = FileNameSanitizer.sanitize(request.getNomeArquivo());
         request.setNomeArquivo(nomeSanitizado);
 
@@ -305,10 +304,8 @@ public class ArquivoService {
             throw new RuntimeException("Arquivo ainda não está disponível para download");
         }
 
-        // Gera token temporário para download
         String token = downloadTokenService.gerarToken(arquivoId, usuarioId);
         
-        // Retorna URL pública com token (válido por 5 minutos)
         return baseUrl + "/api/files/d/" + token;
     }
 
@@ -335,22 +332,15 @@ public class ArquivoService {
             .orElseThrow(() -> new RuntimeException("Arquivo não encontrado: " + arquivoId));
     }
 
-    /**
-     * Verifica se já existe um arquivo completo com o mesmo hash APENAS na mesma sessão.
-     * Arquivos duplicados em sessões diferentes ou com status diferente de COMPLETO são ignorados.
-     */
     private Optional<Arquivo> verificarDeduplicacao(String sessaoId, String hashConteudo) {
-        // Busca no cache Redis primeiro (filtrado por sessão)
         Optional<Arquivo> arquivoCache = arquivoRedisService.buscarPorHash(hashConteudo);
         if (arquivoCache.isPresent()) {
             Arquivo cached = arquivoCache.get();
-            // Verifica se é da mesma sessão E está completo
             if (cached.getSessaoId().equals(sessaoId) && cached.getStatus() == StatusArquivo.COMPLETO) {
                 return arquivoCache;
             }
         }
 
-        // Busca no MongoDB filtrando por sessão + hash + status COMPLETO
         return arquivoRepository.findBySessaoIdAndHashConteudo(sessaoId, hashConteudo)
             .filter(a -> a.getStatus() == StatusArquivo.COMPLETO);
     }
@@ -362,7 +352,6 @@ public class ArquivoService {
     private ProgressoUploadResponse criarProgressoResponse(Arquivo arquivo, boolean completo) {
         String urlDownload = null;
         if (completo && arquivo.getCaminhoMinio() != null) {
-            // Gera token temporário para download
             String token = downloadTokenService.gerarToken(arquivo.getId(), arquivo.getRemetenteId());
             urlDownload = baseUrl + "/api/files/d/" + token;
         }
@@ -396,10 +385,6 @@ public class ArquivoService {
             .build();
     }
 
-    /**
-     * Retorna o progresso detalhado de um upload, incluindo a lista de chunks já recebidos.
-     * Usado para implementar upload resumable.
-     */
     public ProgressoDetalhadoResponse getProgressoDetalhado(String arquivoId, String usuarioId) {
         Arquivo arquivo = buscarArquivoPorId(arquivoId);
         Sessao sessao = sessaoService.buscarPorId(arquivo.getSessaoId());
@@ -427,10 +412,6 @@ public class ArquivoService {
             .build();
     }
 
-    /**
-     * Busca uploads pendentes (incompletos) de um usuário em uma sessão.
-     * Usado para permitir retomada de uploads após refresh da página.
-     */
     public List<UploadPendenteResponse> buscarUploadsPendentes(String sessaoId, String usuarioId) {
         Sessao sessao = sessaoService.buscarPorId(sessaoId);
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);

@@ -35,10 +35,6 @@ public class FileProxyController {
     private final MinioService minioService;
     private final DownloadTokenService downloadTokenService;
 
-    /**
-     * Endpoint para gerar token temporário de download.
-     * Requer autenticação JWT.
-     */
     @GetMapping("/download/{arquivoId}")
     public ResponseEntity<TokenResponse> gerarTokenDownload(
             @PathVariable String arquivoId,
@@ -47,12 +43,10 @@ public class FileProxyController {
         try {
             log.info("Gerando token de download para arquivo: {} pelo usuário: {}", arquivoId, user.getId());
             
-            // Buscar arquivo e validar permissões
             Arquivo arquivo = arquivoService.buscarArquivoPorId(arquivoId);
             Sessao sessao = sessaoService.buscarPorId(arquivo.getSessaoId());
             sessaoService.validarUsuarioPertenceASessao(sessao, user.getId());
 
-            // Gerar token temporário
             String token = downloadTokenService.gerarToken(arquivoId, user.getId());
             
             return ResponseEntity.ok(new TokenResponse(token));
@@ -63,15 +57,10 @@ public class FileProxyController {
         }
     }
 
-    /**
-     * Endpoint público para download de arquivo usando token temporário.
-     * Não requer autenticação JWT - usa token de uso único.
-     */
     @GetMapping("/d/{token}")
     public ResponseEntity<InputStreamResource> downloadComToken(@PathVariable String token) {
         
         try {
-            // Validar e consumir token
             String[] tokenData = downloadTokenService.validarEConsumirToken(token);
             if (tokenData == null) {
                 log.warn("Tentativa de download com token inválido: {}", token);
@@ -82,35 +71,27 @@ public class FileProxyController {
             String usuarioId = tokenData[1];
 
             log.info("Download iniciado via token para arquivo: {} pelo usuário: {}", arquivoId, usuarioId);
-            
-            // Buscar arquivo e validar permissões
             Arquivo arquivo = arquivoService.buscarArquivoPorId(arquivoId);
             Sessao sessao = sessaoService.buscarPorId(arquivo.getSessaoId());
             sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
-            // Obter dados do arquivo do MinIO
             MinioService.ArquivoData arquivoData = minioService.obterArquivo(arquivo.getCaminhoMinio());
 
-            // Preparar headers para download
             HttpHeaders headers = new HttpHeaders();
             
-            // Definir Content-Type
             String contentType = arquivo.getTipoMime();
             if (contentType == null || contentType.isEmpty()) {
                 contentType = "application/octet-stream";
             }
             headers.setContentType(MediaType.parseMediaType(contentType));
             
-            // Definir tamanho
             headers.setContentLength(arquivo.getTamanhoBytes());
             
-            // Forçar download com nome original do arquivo
             String encodedFileName = URLEncoder.encode(arquivo.getNomeOriginal(), StandardCharsets.UTF_8)
                 .replace("+", "%20");
             headers.add(HttpHeaders.CONTENT_DISPOSITION, 
                 "attachment; filename*=UTF-8''" + encodedFileName);
             
-            // Cache control - não cachear arquivos privados
             headers.setCacheControl("no-cache, no-store, must-revalidate");
             headers.add("Pragma", "no-cache");
             headers.add("Expires", "0");
@@ -127,15 +108,10 @@ public class FileProxyController {
         }
     }
 
-    /**
-     * Endpoint para preview/visualização de arquivo no navegador usando token.
-     * Útil para imagens, PDFs, etc.
-     */
     @GetMapping("/p/{token}")
     public ResponseEntity<InputStreamResource> previewComToken(@PathVariable String token) {
         
         try {
-            // Validar e consumir token
             String[] tokenData = downloadTokenService.validarEConsumirToken(token);
             if (tokenData == null) {
                 log.warn("Tentativa de preview com token inválido: {}", token);
@@ -147,15 +123,12 @@ public class FileProxyController {
 
             log.info("Preview iniciado via token para arquivo: {} pelo usuário: {}", arquivoId, usuarioId);
             
-            // Buscar arquivo e validar permissões
             Arquivo arquivo = arquivoService.buscarArquivoPorId(arquivoId);
             Sessao sessao = sessaoService.buscarPorId(arquivo.getSessaoId());
             sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
-            // Obter dados do arquivo do MinIO
             MinioService.ArquivoData arquivoData = minioService.obterArquivo(arquivo.getCaminhoMinio());
 
-            // Preparar headers para preview
             HttpHeaders headers = new HttpHeaders();
             
             String contentType = arquivo.getTipoMime();
@@ -165,13 +138,11 @@ public class FileProxyController {
             headers.setContentType(MediaType.parseMediaType(contentType));
             headers.setContentLength(arquivo.getTamanhoBytes());
             
-            // Para preview, usar inline ao invés de attachment
             String encodedFileName = URLEncoder.encode(arquivo.getNomeOriginal(), StandardCharsets.UTF_8)
                 .replace("+", "%20");
             headers.add(HttpHeaders.CONTENT_DISPOSITION, 
                 "inline; filename*=UTF-8''" + encodedFileName);
             
-            // Cache de 1 hora para previews
             headers.setCacheControl("private, max-age=3600");
 
             log.info("Preview concluído com sucesso via token");

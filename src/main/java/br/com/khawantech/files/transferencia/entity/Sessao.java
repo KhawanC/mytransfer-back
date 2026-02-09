@@ -34,7 +34,6 @@ public class Sessao implements Serializable {
     @Indexed
     private String usuarioConvidadoId;
 
-    // Campos para sistema de aprovação
     private String usuarioConvidadoPendenteId;
     
     private String nomeUsuarioConvidadoPendente;
@@ -66,14 +65,12 @@ public class Sessao implements Serializable {
 
     public void generateHashConexao() {
         if (this.hashConexao == null) {
-            // Gera um código numérico de 8 dígitos (10000000 a 99999999)
             int codigo = 10000000 + new java.util.Random().nextInt(90000000);
             this.hashConexao = String.valueOf(codigo);
         }
     }
     
     public void regenerateHashConexao() {
-        // Gera um novo código numérico de 8 dígitos (10000000 a 99999999)
         int codigo = 10000000 + new java.util.Random().nextInt(90000000);
         this.hashConexao = String.valueOf(codigo);
         this.hashExpiraEm = Instant.now().plusSeconds(20);

@@ -33,7 +33,6 @@ public class RedisConfig {
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        // Configurar ObjectMapper para serialização do cache com suporte a tipos polimórficos
         ObjectMapper objectMapper = JsonMapper.builder()
             .addModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -71,7 +70,6 @@ public class RedisConfig {
         RedisTemplate<String, Sessao> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Configurar ObjectMapper para suportar tipos Java 8 Time e informações de tipo
         ObjectMapper objectMapper = JsonMapper.builder()
             .addModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -100,7 +98,6 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Configurar ObjectMapper para suportar tipos Java 8 Time e informações de tipo
         ObjectMapper objectMapper = JsonMapper.builder()
             .addModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -129,7 +126,6 @@ public class RedisConfig {
         RedisTemplate<String, Arquivo> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Configurar ObjectMapper para suportar tipos Java 8 Time e informações de tipo
         ObjectMapper objectMapper = JsonMapper.builder()
             .addModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)

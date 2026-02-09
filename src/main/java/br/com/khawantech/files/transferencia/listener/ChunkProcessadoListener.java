@@ -20,13 +20,11 @@ public class ChunkProcessadoListener {
     public void handleChunkProcessado(ChunkRecebidoEvent event) {
         log.debug("Chunk processado: arquivo={}, chunk={}/{}",
             event.getArquivoId(), event.getNumeroChunk() + 1, event.getTotalChunks());
-        
-        // Calcula progresso
+
         int chunksRecebidos = event.getNumeroChunk() + 1;
         double progressoPorcentagem = (chunksRecebidos * 100.0) / event.getTotalChunks();
         boolean completo = chunksRecebidos >= event.getTotalChunks();
-        
-        // Notifica progresso via WebSocket para todos os usuários da sessão
+
         notificationService.notificarProgresso(
             event.getSessaoId(),
             ProgressoUploadResponse.builder()

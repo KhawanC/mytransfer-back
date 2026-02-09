@@ -14,9 +14,6 @@ public class HashRenovacaoScheduler {
 
     private final SessaoService sessaoService;
 
-    /**
-     * Executa a cada 20 segundos para renovar hashes expirados de sessões ativas
-     */
     @Scheduled(fixedDelay = 20000, initialDelay = 20000)
     public void renovarHashesExpirados() {
         log.debug("Executando renovação de hashes de sessões");

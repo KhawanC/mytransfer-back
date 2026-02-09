@@ -22,6 +22,7 @@ import br.com.khawantech.files.transferencia.dto.IniciarUploadResponse;
 import br.com.khawantech.files.transferencia.dto.ProgressoDetalhadoResponse;
 import br.com.khawantech.files.transferencia.dto.ProgressoUploadResponse;
 import br.com.khawantech.files.transferencia.dto.RejeitarEntradaRequest;
+import br.com.khawantech.files.transferencia.dto.SairSessaoRequest;
 import br.com.khawantech.files.transferencia.dto.SessaoResponse;
 import br.com.khawantech.files.transferencia.dto.UploadPendenteResponse;
 import br.com.khawantech.files.transferencia.service.ArquivoService;
@@ -83,6 +84,15 @@ public class TransferenciaController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/sessao/sair")
+    public ResponseEntity<Void> sairDaSessao(
+            @Valid @RequestBody SairSessaoRequest request,
+            @AuthenticationPrincipal User user) {
+        log.info("REST: Usuário convidado {} saindo da sessão {}", user.getId(), request.getSessaoId());
+        sessaoService.sairDaSessao(request.getSessaoId(), user.getId());
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/sessao/{sessaoId}")
     public ResponseEntity<SessaoResponse> buscarSessao(
             @PathVariable String sessaoId,
@@ -128,7 +138,6 @@ public class TransferenciaController {
         log.info("REST: Iniciando upload para sessão {}", request.getSessaoId());
         IniciarUploadResponse response = arquivoService.iniciarUpload(request, user.getId());
         
-        // Notifica todos os usuários da sessão sobre o início do upload
         if (!response.isArquivoDuplicado()) {
             notificationService.notificarUploadIniciado(
                 request.getSessaoId(),
@@ -156,10 +165,6 @@ public class TransferenciaController {
         return ResponseEntity.ok(arquivos);
     }
 
-    /**
-     * Retorna o progresso detalhado de um upload, incluindo a lista de chunks já recebidos.
-     * Usado para implementar upload resumable (retomável).
-     */
     @GetMapping("/arquivo/{arquivoId}/progresso")
     public ResponseEntity<ProgressoDetalhadoResponse> getProgressoDetalhado(
             @PathVariable String arquivoId,
@@ -169,10 +174,6 @@ public class TransferenciaController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Retorna a lista de uploads pendentes (incompletos) de um usuário em uma sessão.
-     * Usado para permitir retomada de uploads após refresh da página.
-     */
     @GetMapping("/sessao/{sessaoId}/uploads-pendentes")
     public ResponseEntity<List<UploadPendenteResponse>> listarUploadsPendentes(
             @PathVariable String sessaoId,

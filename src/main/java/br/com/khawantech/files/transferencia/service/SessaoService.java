@@ -37,7 +37,6 @@ public class SessaoService {
 
     @Transactional
     public SessaoResponse criarSessao(String usuarioCriadorId) {
-        // Valida se o usuário já possui uma sessão ativa
         validarUsuarioSemSessaoAtiva(usuarioCriadorId);
         
         Sessao sessao = Sessao.builder()
@@ -65,18 +64,15 @@ public class SessaoService {
     public SessaoResponse entrarSessao(String hashConexao, String usuarioConvidadoId) {
         Sessao sessao = buscarPorHash(hashConexao);
 
-        // Verifica se o usuário já está associado à sessão (convidado ou pendente)
         boolean jaEstaAssociado = usuarioConvidadoId.equals(sessao.getUsuarioConvidadoId()) ||
                                   usuarioConvidadoId.equals(sessao.getUsuarioConvidadoPendenteId());
-        
-        // Se já está associado, apenas retorna a sessão sem modificações
+
         if (jaEstaAssociado) {
             log.info("Usuário {} já está associado à sessão {}, retornando sessão existente", 
                      usuarioConvidadoId, sessao.getId());
             return toSessaoResponse(sessao, null, usuarioConvidadoId);
         }
 
-        // Se não está associado, valida a entrada normalmente
         validarSessaoParaEntrada(sessao, usuarioConvidadoId);
 
         String lockId = lockRedisService.adquirirLock(lockRedisService.getLockSessao(sessao.getId()));
@@ -85,11 +81,9 @@ public class SessaoService {
         }
 
         try {
-            // Busca o nome do usuário convidado
             var usuario = userRepository.findById(usuarioConvidadoId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-            // Define o status como aguardando aprovação ao invés de ativar diretamente
             sessao.setUsuarioConvidadoPendenteId(usuarioConvidadoId);
             sessao.setNomeUsuarioConvidadoPendente(usuario.getName());
             sessao.setStatus(StatusSessao.AGUARDANDO_APROVACAO);
@@ -99,8 +93,7 @@ public class SessaoService {
             sessaoRedisService.atualizarSessao(sessao);
 
             publicarAtualizacaoSessao(sessao, StatusSessao.AGUARDANDO, "Usuário solicitou entrada na sessão");
-            
-            // Notifica o criador especificamente para redirecioná-lo à sessão
+
             webSocketNotificationService.notificarSolicitacaoEntradaCriador(
                 sessao.getUsuarioCriadorId(),
                 sessao.getId(),
@@ -119,12 +112,10 @@ public class SessaoService {
     public SessaoResponse aprovarEntrada(String sessaoId, String usuarioCriadorId) {
         Sessao sessao = buscarPorId(sessaoId);
 
-        // Valida que quem está aprovando é o criador da sessão
         if (!sessao.getUsuarioCriadorId().equals(usuarioCriadorId)) {
             throw new IllegalArgumentException("Apenas o criador da sessão pode aprovar a entrada");
         }
 
-        // Valida que a sessão está aguardando aprovação
         if (sessao.getStatus() != StatusSessao.AGUARDANDO_APROVACAO) {
             throw new IllegalStateException("Não há solicitação de entrada pendente para esta sessão");
         }
@@ -135,7 +126,6 @@ public class SessaoService {
         }
 
         try {
-            // Move o usuário pendente para convidado e ativa a sessão
             sessao.setUsuarioConvidadoId(sessao.getUsuarioConvidadoPendenteId());
             sessao.setUsuarioConvidadoPendenteId(null);
             sessao.setNomeUsuarioConvidadoPendente(null);
@@ -159,12 +149,10 @@ public class SessaoService {
     public void rejeitarEntrada(String sessaoId, String usuarioCriadorId) {
         Sessao sessao = buscarPorId(sessaoId);
 
-        // Valida que quem está rejeitando é o criador da sessão
         if (!sessao.getUsuarioCriadorId().equals(usuarioCriadorId)) {
             throw new IllegalArgumentException("Apenas o criador da sessão pode rejeitar a entrada");
         }
 
-        // Valida que a sessão está aguardando aprovação
         if (sessao.getStatus() != StatusSessao.AGUARDANDO_APROVACAO) {
             throw new IllegalStateException("Não há solicitação de entrada pendente para esta sessão");
         }
@@ -176,8 +164,7 @@ public class SessaoService {
 
         try {
             String usuarioRejeitadoId = sessao.getUsuarioConvidadoPendenteId();
-            
-            // Remove o usuário pendente e volta ao estado aguardando
+
             sessao.setUsuarioConvidadoPendenteId(null);
             sessao.setNomeUsuarioConvidadoPendente(null);
             sessao.setStatus(StatusSessao.AGUARDANDO);
@@ -189,6 +176,53 @@ public class SessaoService {
             publicarAtualizacaoSessao(sessao, StatusSessao.AGUARDANDO_APROVACAO, "Entrada rejeitada pelo criador");
 
             log.info("Entrada do usuário {} rejeitada na sessão {}", usuarioRejeitadoId, sessaoId);
+        } finally {
+            lockRedisService.liberarLock(lockRedisService.getLockSessao(sessao.getId()), lockId);
+        }
+    }
+
+    @Transactional
+    public void sairDaSessao(String sessaoId, String usuarioConvidadoId) {
+        Sessao sessao = buscarPorId(sessaoId);
+
+        boolean eConvidadoPendente = usuarioConvidadoId.equals(sessao.getUsuarioConvidadoPendenteId());
+        boolean eConvidadoAprovado = usuarioConvidadoId.equals(sessao.getUsuarioConvidadoId());
+        
+        if (!eConvidadoPendente && !eConvidadoAprovado) {
+            throw new IllegalArgumentException("Apenas o usuário convidado pode sair da sessão");
+        }
+
+        if (sessao.getStatus() != StatusSessao.AGUARDANDO_APROVACAO && 
+            sessao.getStatus() != StatusSessao.ATIVA) {
+            throw new IllegalStateException("Não é possível sair da sessão no estado atual: " + sessao.getStatus());
+        }
+
+        String lockId = lockRedisService.adquirirLock(lockRedisService.getLockSessao(sessao.getId()));
+        if (lockId == null) {
+            throw new RuntimeException("Não foi possível processar a saída da sessão. Tente novamente.");
+        }
+
+        try {
+            StatusSessao statusAnterior = sessao.getStatus();
+            
+            if (eConvidadoPendente) {
+                sessao.setUsuarioConvidadoPendenteId(null);
+                sessao.setNomeUsuarioConvidadoPendente(null);
+                log.info("Usuário convidado pendente {} saiu da sessão {}", usuarioConvidadoId, sessaoId);
+            } else {
+                sessao.setUsuarioConvidadoId(null);
+                log.info("Usuário convidado {} saiu da sessão {}", usuarioConvidadoId, sessaoId);
+            }
+
+            sessao.setStatus(StatusSessao.AGUARDANDO);
+            sessao.setAtualizadaEm(Instant.now());
+
+            sessao = sessaoRepository.save(sessao);
+            sessaoRedisService.atualizarSessao(sessao);
+
+            publicarAtualizacaoSessao(sessao, statusAnterior, "Usuário convidado saiu da sessão");
+
+            webSocketNotificationService.notificarUsuarioSaiu(sessaoId, usuarioConvidadoId);
         } finally {
             lockRedisService.liberarLock(lockRedisService.getLockSessao(sessao.getId()), lockId);
         }
@@ -219,8 +253,7 @@ public class SessaoService {
             sessaoRepository.findById(sessaoId)
                 .orElseThrow(() -> new SessaoNaoEncontradaException("Sessão não encontrada: " + sessaoId))
         );
-        
-        // Verifica se o hash expirou e renova automaticamente
+
         if (sessao.hashExpirado()) {
             sessao = renovarHashSessao(sessao);
         }
@@ -234,8 +267,7 @@ public class SessaoService {
             sessaoRepository.findByHashConexao(hashConexao)
                 .orElseThrow(() -> new SessaoNaoEncontradaException("Sessão não encontrada com hash: " + hashConexao))
         );
-        
-        // Verifica se o hash expirou e renova automaticamente
+
         if (sessao.hashExpirado()) {
             sessao = renovarHashSessao(sessao);
         }
@@ -342,18 +374,14 @@ public class SessaoService {
     @Transactional
     public Sessao renovarHashSessao(Sessao sessao) {
         String hashAntigo = sessao.getHashConexao();
-        
-        // Invalidar hash antigo no Redis
+
         sessaoRedisService.invalidarSessao(sessao.getId(), hashAntigo);
-        
-        // Gerar novo hash
+
         sessao.regenerateHashConexao();
-        
-        // Salvar no banco e Redis
+
         sessao = sessaoRepository.save(sessao);
         sessaoRedisService.salvarSessao(sessao);
-        
-        // Notificar via WebSocket sobre o hash atualizado
+
         webSocketNotificationService.notificarHashAtualizado(
             sessao.getId(), 
             sessao.getHashConexao(), 
@@ -380,8 +408,7 @@ public class SessaoService {
 
     public List<SessaoResponse> listarSessoesUsuario(String usuarioId) {
         List<Sessao> sessoes = sessaoRepository.findSessoesDoUsuario(usuarioId);
-        
-        // Ordena por data de criação decrescente
+
         sessoes.sort((s1, s2) -> s2.getCriadaEm().compareTo(s1.getCriadaEm()));
         
         log.info("Listando {} sessões para usuário {}", sessoes.size(), usuarioId);
@@ -393,16 +420,14 @@ public class SessaoService {
     
     private void validarUsuarioSemSessaoAtiva(String usuarioId) {
         List<StatusSessao> statusesAtivos = List.of(StatusSessao.AGUARDANDO, StatusSessao.AGUARDANDO_APROVACAO, StatusSessao.ATIVA);
-        
-        // Busca no MongoDB se o usuário é criador de alguma sessão ativa
+
         for (StatusSessao status : statusesAtivos) {
             List<Sessao> sessoesComoCriador = sessaoRepository.findByUsuarioCriadorIdAndStatus(usuarioId, status);
             if (!sessoesComoCriador.isEmpty()) {
                 throw new IllegalStateException("Você já possui uma sessão ativa");
             }
         }
-        
-        // Busca se o usuário é convidado em alguma sessão ativa
+
         for (StatusSessao status : statusesAtivos) {
             List<Sessao> sessoesComoConvidado = sessaoRepository.findByUsuarioConvidadoIdAndStatus(usuarioId, status);
             if (!sessoesComoConvidado.isEmpty()) {
@@ -412,7 +437,6 @@ public class SessaoService {
     }
 
     private SessaoResponse toSessaoResponse(Sessao sessao, String qrCodeBase64, String usuarioId) {
-        // Calcula flags de permissão
         boolean estaAtiva = sessao.getStatus() == StatusSessao.ATIVA || 
                            sessao.getStatus() == StatusSessao.AGUARDANDO || 
                            sessao.getStatus() == StatusSessao.AGUARDANDO_APROVACAO;

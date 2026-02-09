@@ -27,7 +27,6 @@ public class ArquivoCompletoListener {
         log.info("Arquivo completo recebido: {} - {}", event.getArquivoId(), event.getNomeOriginal());
 
         try {
-            // Gera token temporário para download
             String token = downloadTokenService.gerarToken(event.getArquivoId(), event.getRemetenteId());
             String urlDownload = baseUrl + "/api/files/d/" + token;
 

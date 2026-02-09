@@ -21,7 +21,7 @@ public class SessaoAtualizadaListener {
         log.info("Sessão atualizada: {} - {} -> {}",
             event.getSessaoId(), event.getStatusAnterior(), event.getStatusNovo());
 
-        // Notifica solicitação de entrada (aguardando aprovação)
+
         if (event.getStatusNovo() == StatusSessao.AGUARDANDO_APROVACAO &&
             event.getStatusAnterior() == StatusSessao.AGUARDANDO) {
             notificationService.notificarSolicitacaoEntrada(
@@ -30,15 +30,12 @@ public class SessaoAtualizadaListener {
                 event.getNomeUsuarioConvidadoPendente()
             );
         }
-
-        // Notifica entrada aprovada
         if (event.getStatusNovo() == StatusSessao.ATIVA &&
             event.getStatusAnterior() == StatusSessao.AGUARDANDO_APROVACAO) {
             notificationService.notificarEntradaAprovada(event.getSessaoId(), event.getUsuarioConvidadoId());
             notificationService.notificarUsuarioEntrou(event.getSessaoId(), event.getUsuarioConvidadoId());
         }
 
-        // Notifica entrada rejeitada
         if (event.getStatusNovo() == StatusSessao.AGUARDANDO &&
             event.getStatusAnterior() == StatusSessao.AGUARDANDO_APROVACAO) {
             notificationService.notificarEntradaRejeitada(event.getSessaoId());

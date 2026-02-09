@@ -2,6 +2,7 @@ package br.com.khawantech.files.transferencia.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final WebSocketChannelInterceptor webSocketChannelInterceptor;
     
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -28,8 +30,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(webSocketChannelInterceptor);
+    }
+
+    @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // ✅ CORREÇÃO DE SEGURANÇA: CORS específico para o frontend autorizado
         registry.addEndpoint("/ws")
             .addInterceptors(webSocketAuthInterceptor)
             .setAllowedOrigins(frontendUrl)
@@ -42,11 +48,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
-        // ✅ CORREÇÃO DE SEGURANÇA: Limites reduzidos de 50 MB para 8 MB
-        // Chunk máximo: 5 MB binário = ~6.7 MB em Base64
-        // Adicionar margem de segurança: 8 MB
-        registration.setMessageSizeLimit(8 * 1024 * 1024); // 8 MB (anterior: 50 MB)
-        registration.setSendBufferSizeLimit(8 * 1024 * 1024); // 8 MB (anterior: 50 MB)
-        registration.setSendTimeLimit(60 * 1000); // 60 segundos
+        registration.setMessageSizeLimit(8 * 1024 * 1024);
+        registration.setSendBufferSizeLimit(8 * 1024 * 1024);
+        registration.setSendTimeLimit(60 * 1000);
     }
 }

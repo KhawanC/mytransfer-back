@@ -97,8 +97,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(frontendUrl));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
-        
-        // Headers expostos para permitir downloads e informações de arquivos
+
         configuration.setExposedHeaders(Arrays.asList(
             "Authorization",
             "Content-Disposition",

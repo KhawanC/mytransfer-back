@@ -16,6 +16,7 @@ import br.com.khawantech.files.transferencia.dto.IniciarUploadRequest;
 import br.com.khawantech.files.transferencia.dto.IniciarUploadResponse;
 import br.com.khawantech.files.transferencia.dto.ProgressoUploadResponse;
 import br.com.khawantech.files.transferencia.dto.RejeitarEntradaRequest;
+import br.com.khawantech.files.transferencia.dto.SairSessaoRequest;
 import br.com.khawantech.files.transferencia.dto.SessaoResponse;
 import br.com.khawantech.files.transferencia.entity.Sessao;
 import br.com.khawantech.files.transferencia.service.ArquivoService;
@@ -64,7 +65,6 @@ public class TransferenciaWebSocketController {
         String usuarioId = getUsuarioId(headerAccessor);
         log.info("WebSocket: Usuário {} aprovando entrada na sessão {}", usuarioId, request.getSessaoId());
 
-        // ✅ CORREÇÃO DE SEGURANÇA: Validar permissões antes de processar
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
@@ -80,11 +80,23 @@ public class TransferenciaWebSocketController {
         String usuarioId = getUsuarioId(headerAccessor);
         log.info("WebSocket: Usuário {} rejeitando entrada na sessão {}", usuarioId, request.getSessaoId());
 
-        // ✅ CORREÇÃO DE SEGURANÇA: Validar permissões antes de processar
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
         sessaoService.rejeitarEntrada(request.getSessaoId(), usuarioId);
+    }
+
+    @MessageMapping("/sessao/sair")
+    @SendToUser("/queue/sessao")
+    public void sairDaSessao(@Payload SairSessaoRequest request,
+                             SimpMessageHeaderAccessor headerAccessor) {
+        String usuarioId = getUsuarioId(headerAccessor);
+        log.info("WebSocket: Usuário convidado {} saindo da sessão {}", usuarioId, request.getSessaoId());
+
+        Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
+        sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
+
+        sessaoService.sairDaSessao(request.getSessaoId(), usuarioId);
     }
 
     @MessageMapping("/sessao/encerrar")
@@ -94,7 +106,6 @@ public class TransferenciaWebSocketController {
         String usuarioId = getUsuarioId(headerAccessor);
         log.info("WebSocket: Usuário {} encerrando sessão: {}", usuarioId, request.getSessaoId());
 
-        // ✅ CORREÇÃO DE SEGURANÇA: Validar permissões antes de processar
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
@@ -109,11 +120,9 @@ public class TransferenciaWebSocketController {
         String usuarioId = getUsuarioId(headerAccessor);
         log.info("WebSocket: Iniciando upload para usuário: {} na sessão: {}", usuarioId, request.getSessaoId());
 
-        // ✅ CORREÇÃO DE SEGURANÇA: Validar permissões antes de processar
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
-        
-        // ✅ CORREÇÃO DE SEGURANÇA: Sanitizar nome do arquivo
+
         String nomeOriginal = request.getNomeArquivo();
         String nomeSanitizado = FileNameSanitizer.sanitize(nomeOriginal);
         request.setNomeArquivo(nomeSanitizado);
@@ -137,13 +146,10 @@ public class TransferenciaWebSocketController {
                                                 SimpMessageHeaderAccessor headerAccessor) {
         String usuarioId = getUsuarioId(headerAccessor);
 
-        // ✅ CORREÇÃO DE SEGURANÇA CRÍTICA: Validar permissões antes de processar chunk
-        // Vulnerabilidade: usuário poderia enviar chunks para sessões de outros usuários
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
         sessaoService.validarSessaoAtiva(sessao);
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
-        
-        // Log de segurança
+
         log.debug("WebSocket Chunk: Usuário {} enviando chunk {} do arquivo {} na sessão {}", 
                  usuarioId, request.getNumeroChunk(), request.getArquivoId(), request.getSessaoId());
 

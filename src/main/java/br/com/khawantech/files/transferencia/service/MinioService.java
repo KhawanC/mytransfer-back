@@ -123,13 +123,8 @@ public class MinioService {
         }
     }
 
-    /**
-     * Obtém arquivo do MinIO como stream para fazer proxy de download.
-     * Retorna o InputStream e metadados do arquivo.
-     */
     public ArquivoData obterArquivo(String caminhoMinio) {
         try {
-            // Obter metadados
             StatObjectResponse stat = minioClient.statObject(
                 StatObjectArgs.builder()
                     .bucket(properties.getMinioBucket())
@@ -137,7 +132,6 @@ public class MinioService {
                     .build()
             );
 
-            // Obter stream do arquivo
             InputStream stream = minioClient.getObject(
                 GetObjectArgs.builder()
                     .bucket(properties.getMinioBucket())
@@ -153,9 +147,6 @@ public class MinioService {
         }
     }
 
-    /**
-     * Record para transportar dados do arquivo do MinIO
-     */
     public record ArquivoData(InputStream inputStream, String contentType, long size) {}
 
     public void deleteChunk(String sessaoId, String arquivoId, int numeroChunk) {

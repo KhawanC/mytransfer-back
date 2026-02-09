@@ -17,10 +17,6 @@ public class DownloadTokenService {
     private static final String TOKEN_PREFIX = "download_token:";
     private static final long TOKEN_EXPIRATION_MINUTES = 5;
 
-    /**
-     * Gera um token temporário para download de arquivo.
-     * O token é válido por 5 minutos e só pode ser usado uma vez.
-     */
     public String gerarToken(String arquivoId, String usuarioId) {
         String token = UUID.randomUUID().toString();
         String key = TOKEN_PREFIX + token;
@@ -32,11 +28,6 @@ public class DownloadTokenService {
         return token;
     }
 
-    /**
-     * Valida e consome o token de download.
-     * Retorna um array com [arquivoId, usuarioId] se válido, ou null se inválido.
-     * O token é destruído após uso (one-time use).
-     */
     public String[] validarEConsumirToken(String token) {
         String key = TOKEN_PREFIX + token;
         String value = redisTemplate.opsForValue().get(key);
@@ -46,7 +37,6 @@ public class DownloadTokenService {
             return null;
         }
 
-        // Consumir token (one-time use)
         redisTemplate.delete(key);
 
         String[] parts = value.split(":");
@@ -56,6 +46,6 @@ public class DownloadTokenService {
         }
 
         log.debug("Token de download validado e consumido: {}", token);
-        return parts; // [arquivoId, usuarioId]
+        return parts;
     }
 }
