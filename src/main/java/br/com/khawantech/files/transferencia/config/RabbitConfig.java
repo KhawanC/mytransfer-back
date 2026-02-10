@@ -36,6 +36,7 @@ public class RabbitConfig {
     public static final String QUEUE_IMAGE_OPTIMIZATION = "transferencia.image.optimization";
     public static final String QUEUE_VIDEO_OPTIMIZATION = "transferencia.video.optimization";
     public static final String QUEUE_ARQUIVO_SECURITY = "transferencia.arquivo.security";
+    public static final String QUEUE_ASSINATURA_WEBHOOK = "assinatura.webhook";
     
     public static final String QUEUE_CHUNK_DLQ = "transferencia.chunk.dlq";
     public static final String QUEUE_ARQUIVO_DLQ = "transferencia.arquivo.dlq";
@@ -45,6 +46,7 @@ public class RabbitConfig {
     public static final String QUEUE_IMAGE_OPTIMIZATION_DLQ = "transferencia.image.optimization.dlq";
     public static final String QUEUE_VIDEO_OPTIMIZATION_DLQ = "transferencia.video.optimization.dlq";
     public static final String QUEUE_ARQUIVO_SECURITY_DLQ = "transferencia.arquivo.security.dlq";
+    public static final String QUEUE_ASSINATURA_WEBHOOK_DLQ = "assinatura.webhook.dlq";
 
     public static final String ROUTING_KEY_CHUNK = "chunk.processado";
     public static final String ROUTING_KEY_ARQUIVO = "arquivo.completo";
@@ -54,6 +56,7 @@ public class RabbitConfig {
     public static final String ROUTING_KEY_IMAGE_OPTIMIZATION = "image.optimization";
     public static final String ROUTING_KEY_VIDEO_OPTIMIZATION = "video.optimization";
     public static final String ROUTING_KEY_ARQUIVO_SECURITY = "arquivo.security";
+    public static final String ROUTING_KEY_ASSINATURA_WEBHOOK = "assinatura.webhook";
     
     public static final String ROUTING_KEY_CHUNK_DLQ = "chunk.dlq";
     public static final String ROUTING_KEY_ARQUIVO_DLQ = "arquivo.dlq";
@@ -63,6 +66,7 @@ public class RabbitConfig {
     public static final String ROUTING_KEY_IMAGE_OPTIMIZATION_DLQ = "image.optimization.dlq";
     public static final String ROUTING_KEY_VIDEO_OPTIMIZATION_DLQ = "video.optimization.dlq";
     public static final String ROUTING_KEY_ARQUIVO_SECURITY_DLQ = "arquivo.security.dlq";
+    public static final String ROUTING_KEY_ASSINATURA_WEBHOOK_DLQ = "assinatura.webhook.dlq";
 
     @Bean
     public DirectExchange transferenciaExchange() {
@@ -139,6 +143,14 @@ public class RabbitConfig {
     }
 
     @Bean
+    public Queue assinaturaWebhookQueue() {
+        return QueueBuilder.durable(QUEUE_ASSINATURA_WEBHOOK)
+            .withArgument("x-dead-letter-exchange", EXCHANGE_DLQ)
+            .withArgument("x-dead-letter-routing-key", ROUTING_KEY_ASSINATURA_WEBHOOK_DLQ)
+            .build();
+    }
+
+    @Bean
     public Queue chunkDlqQueue() {
         return QueueBuilder.durable(QUEUE_CHUNK_DLQ).build();
     }
@@ -176,6 +188,11 @@ public class RabbitConfig {
     @Bean
     public Queue arquivoSecurityDlqQueue() {
         return QueueBuilder.durable(QUEUE_ARQUIVO_SECURITY_DLQ).build();
+    }
+
+    @Bean
+    public Queue assinaturaWebhookDlqQueue() {
+        return QueueBuilder.durable(QUEUE_ASSINATURA_WEBHOOK_DLQ).build();
     }
 
     @Bean
@@ -219,6 +236,11 @@ public class RabbitConfig {
     }
 
     @Bean
+    public Binding assinaturaWebhookBinding(Queue assinaturaWebhookQueue, DirectExchange transferenciaExchange) {
+        return BindingBuilder.bind(assinaturaWebhookQueue).to(transferenciaExchange).with(ROUTING_KEY_ASSINATURA_WEBHOOK);
+    }
+
+    @Bean
     public Binding chunkDlqBinding(Queue chunkDlqQueue, DirectExchange dlqExchange) {
         return BindingBuilder.bind(chunkDlqQueue).to(dlqExchange).with(ROUTING_KEY_CHUNK_DLQ);
     }
@@ -256,6 +278,11 @@ public class RabbitConfig {
     @Bean
     public Binding arquivoSecurityDlqBinding(Queue arquivoSecurityDlqQueue, DirectExchange dlqExchange) {
         return BindingBuilder.bind(arquivoSecurityDlqQueue).to(dlqExchange).with(ROUTING_KEY_ARQUIVO_SECURITY_DLQ);
+    }
+
+    @Bean
+    public Binding assinaturaWebhookDlqBinding(Queue assinaturaWebhookDlqQueue, DirectExchange dlqExchange) {
+        return BindingBuilder.bind(assinaturaWebhookDlqQueue).to(dlqExchange).with(ROUTING_KEY_ASSINATURA_WEBHOOK_DLQ);
     }
 
     @Bean

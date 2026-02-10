@@ -32,6 +32,11 @@ public class DlqListener {
         logDlqMessage("SESSAO", message);
     }
 
+    @RabbitListener(queues = QUEUE_ASSINATURA_WEBHOOK_DLQ)
+    public void handleAssinaturaWebhookDlqMessage(Message message) {
+        logDlqMessage("ASSINATURA_WEBHOOK", message);
+    }
+
     private void logDlqMessage(String type, Message message) {
         String body = new String(message.getBody(), StandardCharsets.UTF_8);
         Map<String, Object> headers = message.getMessageProperties().getHeaders();
