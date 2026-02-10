@@ -1,11 +1,10 @@
 package br.com.khawantech.files.transferencia.controller;
 
 import br.com.khawantech.files.transferencia.dto.ConversaoRequest;
-import br.com.khawantech.files.transferencia.dto.FormatoImagem;
 import br.com.khawantech.files.transferencia.entity.Arquivo;
-import br.com.khawantech.files.transferencia.exception.RecursoNaoEncontradoException;
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
-import br.com.khawantech.files.transferencia.service.ImageConversionService;
+import br.com.khawantech.files.transferencia.exception.RecursoNaoEncontradoException;
+import br.com.khawantech.files.transferencia.service.ConversionFacadeService;
 import br.com.khawantech.files.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ImageConversionController {
 
-    private final ImageConversionService imageConversionService;
+    private final ConversionFacadeService conversionFacadeService;
     private final ArquivoRepository arquivoRepository;
 
     @PostMapping("/{arquivoId}/converter")
@@ -35,7 +34,7 @@ public class ImageConversionController {
         log.info("REST: Usuário {} solicitando conversão do arquivo {} para formato {}", 
             user.getId(), arquivoId, request.getFormato());
 
-        imageConversionService.converterImagem(arquivoId, request.getFormato(), user);
+        conversionFacadeService.converterArquivo(arquivoId, request.getFormato(), user);
 
         return ResponseEntity.accepted()
             .body(Map.of("message", "Conversão iniciada com sucesso"));
@@ -56,11 +55,6 @@ public class ImageConversionController {
             return ResponseEntity.ok(List.of());
         }
 
-        List<String> formatos = arquivo.getFormatosDisponiveis()
-            .stream()
-            .map(Enum::name)
-            .toList();
-
-        return ResponseEntity.ok(formatos);
+        return ResponseEntity.ok(conversionFacadeService.getFormatosDisponiveis(arquivo));
     }
 }

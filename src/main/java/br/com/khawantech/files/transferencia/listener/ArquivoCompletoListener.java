@@ -6,10 +6,9 @@ import org.springframework.stereotype.Component;
 
 import br.com.khawantech.files.transferencia.config.RabbitConfig;
 import br.com.khawantech.files.transferencia.dto.ArquivoCompletoEvent;
-import br.com.khawantech.files.transferencia.entity.Arquivo;
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.service.DownloadTokenService;
-import br.com.khawantech.files.transferencia.service.ImageConversionService;
+import br.com.khawantech.files.transferencia.service.ConversionFacadeService;
 import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +20,7 @@ public class ArquivoCompletoListener {
 
     private final WebSocketNotificationService notificationService;
     private final DownloadTokenService downloadTokenService;
-    private final ImageConversionService imageConversionService;
+    private final ConversionFacadeService conversionFacadeService;
     private final ArquivoRepository arquivoRepository;
 
     @Value("${app.base-url}")
@@ -59,7 +58,7 @@ public class ArquivoCompletoListener {
 
     private boolean detectarImagemConversivel(ArquivoCompletoEvent event) {
         try {
-            if (imageConversionService.isImagemConversivel(event.getTipoMime())) {
+            if (conversionFacadeService.isConversivel(event.getTipoMime())) {
                 arquivoRepository.findById(event.getArquivoId()).ifPresent(arquivo -> {
                     arquivo.setConversivel(true);
                     arquivoRepository.save(arquivo);

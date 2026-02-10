@@ -103,7 +103,7 @@ public class ImageConversionService {
         }
 
         FormatoImagem formato = FormatoImagem.valueOf(formatoDestino);
-        List<FormatoImagem> formatosDisponiveis = arquivo.getFormatosDisponiveis();
+        List<FormatoImagem> formatosDisponiveis = getFormatosDisponiveis(arquivo.getTipoMime());
         
         if (!formatosDisponiveis.contains(formato)) {
             throw new ConversaoNaoSuportadaException("Formato de conversão não disponível para este arquivo");

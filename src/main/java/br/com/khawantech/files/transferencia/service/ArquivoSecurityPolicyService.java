@@ -42,6 +42,13 @@ public class ArquivoSecurityPolicyService {
         groups.put("video/mp4", "video-mp4");
         groups.put("video/quicktime", "video-mp4");
 
+        groups.put("video/webm", "video-matroska");
+        groups.put("video/x-matroska", "video-matroska");
+        groups.put("video/matroska", "video-matroska");
+
+        groups.put("video/3gpp", "video-3gpp");
+        groups.put("video/3gpp2", "video-3gpp");
+
         groups.put("audio/mp4", "audio-mp4");
         groups.put("audio/x-m4a", "audio-mp4");
         groups.put("audio/m4a", "audio-mp4");
@@ -70,6 +77,11 @@ public class ArquivoSecurityPolicyService {
             if (isEquivalentMime(informado, detectado)) {
                 return Decision.permitir();
             }
+
+            if (isVideoLike(informado) && (isVideoLike(detectado) || OCTET_STREAM.equals(detectado))) {
+                return Decision.permitir();
+            }
+
             return Decision.bloquear("Arquivo bloqueado: tipo informado divergente do detectado");
         }
 
@@ -83,6 +95,10 @@ public class ArquivoSecurityPolicyService {
         }
         String g2 = MIME_EQUIVALENCE_GROUP.get(detectado);
         return g1.equals(g2);
+    }
+
+    private static boolean isVideoLike(String mime) {
+        return mime != null && (mime.startsWith("video/") || "image/gif".equals(mime));
     }
 
 

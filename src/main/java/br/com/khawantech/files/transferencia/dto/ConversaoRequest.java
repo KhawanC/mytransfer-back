@@ -14,6 +14,9 @@ import lombok.NoArgsConstructor;
 public class ConversaoRequest {
 
     @NotBlank(message = "Formato de destino é obrigatório")
-    @Pattern(regexp = "JPEG|JPG|PNG|BMP|WEBP|SVG|TIFF|ICO", message = "Formato não suportado")
+    @Pattern(
+        regexp = "JPEG|JPG|PNG|BMP|WEBP|SVG|TIFF|ICO|MP4|MKV|WEBM|MOV|AVI|FLV|3GP|MPEG|GIF",
+        message = "Formato não suportado"
+    )
     private String formato;
 }

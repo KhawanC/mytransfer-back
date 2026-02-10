@@ -31,7 +31,8 @@ RUN apk add --no-cache \
 	libpng \
 	libwebp \
 	tiff \
-	librsvg
+	librsvg \
+	ffmpeg
 
 WORKDIR /app
 
