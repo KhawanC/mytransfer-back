@@ -63,7 +63,6 @@ public class Arquivo implements Serializable {
     @Builder.Default
     private Boolean conversivel = false;
 
-    @Indexed
     private String arquivoOriginalId;
 
     private String formatoConvertido;
