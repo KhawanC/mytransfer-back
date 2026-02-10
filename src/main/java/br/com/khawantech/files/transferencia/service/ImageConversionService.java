@@ -44,6 +44,7 @@ public class ImageConversionService {
     private final WebSocketNotificationService notificationService;
     private final TransferenciaProperties properties;
     private final RabbitTemplate rabbitTemplate;
+    private final ImageMagickSupportService imageMagickSupportService;
 
     @Value("${imagemagick.timeout-seconds:300}")
     private Integer timeoutSeconds;
@@ -52,11 +53,16 @@ public class ImageConversionService {
     private Long maxResolution;
 
     public boolean isImagemConversivel(String mimeType) {
-        return FormatoImagem.isImagemConversivel(mimeType);
+        return FormatoImagem.fromMimeType(mimeType)
+            .map(this::toMagickFormat)
+            .map(imageMagickSupportService::supportsRead)
+            .orElse(false);
     }
 
     public List<FormatoImagem> getFormatosDisponiveis(String mimeType) {
-        return FormatoImagem.getFormatosDisponiveis(mimeType);
+        return FormatoImagem.getFormatosDisponiveis(mimeType).stream()
+            .filter(formato -> imageMagickSupportService.supportsWrite(toMagickFormat(formato)))
+            .toList();
     }
 
     @Transactional
@@ -178,6 +184,16 @@ public class ImageConversionService {
             FormatoImagem formatoOriginal = FormatoImagem.fromMimeType(mimeTypeOriginal)
                 .orElseThrow(() -> new ConversaoNaoSuportadaException("Formato original não suportado"));
 
+            String magickFormatoOriginal = toMagickFormat(formatoOriginal);
+            String magickFormatoDestino = toMagickFormat(formatoDestino);
+
+            if (!imageMagickSupportService.supportsRead(magickFormatoOriginal)) {
+                throw new ConversaoNaoSuportadaException("ImageMagick não suporta leitura do formato " + magickFormatoOriginal);
+            }
+            if (!imageMagickSupportService.supportsWrite(magickFormatoDestino)) {
+                throw new ConversaoNaoSuportadaException("ImageMagick não suporta escrita do formato " + magickFormatoDestino);
+            }
+
             tempInputPath = Files.createTempFile("input_", "." + formatoOriginal.getExtension());
             tempOutputPath = Files.createTempFile("output_", "." + formatoDestino.getExtension());
 
@@ -192,7 +208,7 @@ public class ImageConversionService {
             op.define("limit:time=" + timeoutSeconds);
             op.define("limit:pixels=" + maxResolution);
             
-            op.addImage(formatoDestino.name().toLowerCase() + ":" + tempOutputPath.toString());
+            op.addImage(magickFormatoDestino.toLowerCase() + ":" + tempOutputPath.toString());
 
             cmd.run(op);
 
@@ -204,6 +220,19 @@ public class ImageConversionService {
         } finally {
             limparArquivosTemporarios(tempInputPath, tempOutputPath);
         }
+    }
+
+    private String toMagickFormat(FormatoImagem formatoImagem) {
+        if (formatoImagem == null) {
+            return "";
+        }
+        if (FormatoImagem.JPG.equals(formatoImagem) || FormatoImagem.JPEG.equals(formatoImagem)) {
+            return "JPEG";
+        }
+        if (FormatoImagem.TIFF.equals(formatoImagem)) {
+            return "TIFF";
+        }
+        return formatoImagem.name();
     }
 
     private Arquivo criarArquivoConvertido(Arquivo original, FormatoImagem formatoDestino, long tamanhoBytes) {
