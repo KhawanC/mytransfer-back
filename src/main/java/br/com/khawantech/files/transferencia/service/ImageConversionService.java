@@ -13,6 +13,8 @@ import br.com.khawantech.files.transferencia.exception.RecursoNaoEncontradoExcep
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.util.FileNameSanitizer;
 import br.com.khawantech.files.user.entity.User;
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.im4java.core.ConvertCmd;
@@ -37,6 +39,7 @@ public class ImageConversionService {
 
     private final ArquivoRepository arquivoRepository;
     private final MinioService minioService;
+    private final MinioClient minioClient;
     private final SessaoService sessaoService;
     private final WebSocketNotificationService notificationService;
     private final TransferenciaProperties properties;
@@ -125,11 +128,13 @@ public class ImageConversionService {
                 arquivoConvertido.getNomeOriginal()
             );
 
-            minioService.uploadArquivo(
-                caminhoMinio,
-                new ByteArrayInputStream(imagemConvertida),
-                imagemConvertida.length,
-                formatoDestino.getMimeType()
+            minioClient.putObject(
+                PutObjectArgs.builder()
+                    .bucket(properties.getMinioBucket())
+                    .object(caminhoMinio)
+                    .stream(new ByteArrayInputStream(imagemConvertida), imagemConvertida.length, -1)
+                    .contentType(formatoDestino.getMimeType())
+                    .build()
             );
 
             arquivoConvertido.setCaminhoMinio(caminhoMinio);
@@ -184,8 +189,8 @@ public class ImageConversionService {
             IMOperation op = new IMOperation();
             op.addImage(tempInputPath.toString());
             
-            op.p_define("limit:time", String.valueOf(timeoutSeconds));
-            op.p_define("limit:pixels", String.valueOf(maxResolution));
+            op.define("limit:time=" + timeoutSeconds);
+            op.define("limit:pixels=" + maxResolution);
             
             op.addImage(formatoDestino.name().toLowerCase() + ":" + tempOutputPath.toString());
 
