@@ -125,7 +125,7 @@ public class TransferenciaController {
             .build());
     }
 
-    @GetMapping("/sessao/{sessaoId}/limites")
+    @GetMapping("/sessao/{sessaoId}/estatisticas")
     public ResponseEntity<SessaoEstatisticasResponse> obterEstatisticasSessao(
             @PathVariable String sessaoId,
             @AuthenticationPrincipal User user) {
