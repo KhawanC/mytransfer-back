@@ -300,8 +300,8 @@ public class SessaoService {
     }
     
     public void validarPodeUpload(Sessao sessao) {
-        if (sessao.getStatus() != StatusSessao.ATIVA) {
-            throw new IllegalStateException("Upload só é permitido em sessões ativas. Status atual: " + sessao.getStatus());
+        if (sessao.getStatus() != StatusSessao.ATIVA && sessao.getStatus() != StatusSessao.AGUARDANDO) {
+            throw new IllegalStateException("Upload só é permitido em sessões ativas ou aguardando participantes. Status atual: " + sessao.getStatus());
         }
         
         validarSessaoAtiva(sessao);
@@ -464,7 +464,8 @@ public class SessaoService {
                            sessao.getStatus() == StatusSessao.AGUARDANDO || 
                            sessao.getStatus() == StatusSessao.AGUARDANDO_APROVACAO;
         
-        boolean podeUpload = sessao.getStatus() == StatusSessao.ATIVA;
+        boolean podeUpload = sessao.getStatus() == StatusSessao.ATIVA ||
+                            sessao.getStatus() == StatusSessao.AGUARDANDO;
         
         boolean podeEncerrar = estaAtiva && usuarioId != null && 
                               (usuarioId.equals(sessao.getUsuarioCriadorId()) || 

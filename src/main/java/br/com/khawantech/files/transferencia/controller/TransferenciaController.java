@@ -115,7 +115,8 @@ public class TransferenciaController {
             .criadaEm(sessao.getCriadaEm())
             .expiraEm(sessao.getExpiraEm())
             .hashExpiraEm(sessao.getHashExpiraEm())
-            .podeUpload(sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.ATIVA)
+            .podeUpload(sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.ATIVA ||
+                       sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO)
             .podeEncerrar(sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.ATIVA || 
                          sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO || 
                          sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO_APROVACAO)
@@ -214,6 +215,15 @@ public class TransferenciaController {
         log.info("REST: Buscando limites da sessão {}", sessaoId);
         SessaoLimitesResponse limites = sessaoService.buscarLimitesSessao(sessaoId);
         return ResponseEntity.ok(limites);
+    }
+
+    @DeleteMapping("/arquivo/{arquivoId}")
+    public ResponseEntity<Void> excluirArquivo(
+            @PathVariable String arquivoId,
+            @AuthenticationPrincipal User user) {
+        log.info("REST: Excluindo arquivo {} pelo usuário {}", arquivoId, user.getId());
+        arquivoService.excluirArquivo(arquivoId, user.getId());
+        return ResponseEntity.noContent().build();
     }
 
     public record DownloadResponse(String arquivoId, String urlDownload) {}

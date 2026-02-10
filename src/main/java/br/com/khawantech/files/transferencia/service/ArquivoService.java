@@ -55,6 +55,7 @@ public class ArquivoService {
     private final TransferenciaProperties properties;
     private final RabbitTemplate rabbitTemplate;
     private final DownloadTokenService downloadTokenService;
+    private final WebSocketNotificationService webSocketNotificationService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -159,6 +160,10 @@ public class ArquivoService {
             return criarProgressoResponse(arquivo, true);
         }
 
+        if (arquivo.getStatus() == StatusArquivo.ERRO) {
+            throw new RuntimeException("Arquivo em estado de erro. Mensagem: " + arquivo.getMensagemErro());
+        }
+
         if (request.getNumeroChunk() < 0 || request.getNumeroChunk() >= arquivo.getTotalChunks()) {
             throw new ChunkInvalidoException("Número do chunk inválido: " + request.getNumeroChunk());
         }
@@ -243,6 +248,10 @@ public class ArquivoService {
 
             return criarProgressoResponse(arquivo, completo);
 
+        } catch (Exception e) {
+            log.error("Erro ao processar chunk {} do arquivo {}: {}", request.getNumeroChunk(), arquivo.getId(), e.getMessage(), e);
+            marcarComoErro(arquivo, sessao.getId(), "Erro ao processar upload: " + e.getMessage());
+            throw e;
         } finally {
             lockRedisService.liberarLock(lockKey, lockId);
         }
@@ -389,9 +398,62 @@ public class ArquivoService {
             .progressoUpload(arquivo.getProgressoUpload())
             .totalChunks(arquivo.getTotalChunks())
             .chunksRecebidos(arquivo.getChunksRecebidos())
+            .mensagemErro(arquivo.getMensagemErro())
             .criadoEm(arquivo.getCriadoEm())
             .atualizadoEm(arquivo.getAtualizadoEm())
             .build();
+    }
+
+    @Transactional
+    public void marcarComoErro(Arquivo arquivo, String sessaoId, String mensagemErro) {
+        arquivo.setStatus(StatusArquivo.ERRO);
+        arquivo.setMensagemErro(mensagemErro);
+        arquivo.setAtualizadoEm(Instant.now());
+        
+        arquivoRepository.save(arquivo);
+        arquivoRedisService.atualizarArquivo(arquivo);
+        
+        progressoRedisService.limparProgresso(arquivo.getId());
+        
+        webSocketNotificationService.notificarErroUpload(
+            sessaoId,
+            arquivo.getId(),
+            mensagemErro
+        );
+        
+        log.warn("Arquivo {} marcado como ERRO: {}", arquivo.getId(), mensagemErro);
+    }
+
+    @Transactional
+    public void excluirArquivo(String arquivoId, String usuarioId) {
+        Arquivo arquivo = buscarArquivoPorId(arquivoId);
+        Sessao sessao = sessaoService.buscarPorId(arquivo.getSessaoId());
+        
+        sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
+        
+        if (!arquivo.getRemetenteId().equals(usuarioId)) {
+            throw new RuntimeException("Apenas o remetente pode excluir o arquivo");
+        }
+        
+        if (arquivo.getStatus() != StatusArquivo.ERRO && arquivo.getStatus() != StatusArquivo.PENDENTE) {
+            throw new RuntimeException("Apenas arquivos com erro ou pendentes podem ser excluídos");
+        }
+        
+        try {
+            if (arquivo.getCaminhoMinio() != null) {
+                minioService.deleteArquivo(arquivo.getCaminhoMinio());
+            }
+            
+            chunkArquivoRepository.deleteByArquivoId(arquivoId);
+        } catch (Exception e) {
+            log.warn("Erro ao excluir recursos do MinIO para arquivo {}: {}", arquivoId, e.getMessage());
+        }
+        
+        progressoRedisService.limparProgresso(arquivoId);
+        arquivoRedisService.removerArquivo(arquivoId);
+        arquivoRepository.deleteById(arquivoId);
+        
+        log.info("Arquivo {} excluído pelo usuário {}", arquivoId, usuarioId);
     }
 
     public ProgressoDetalhadoResponse getProgressoDetalhado(String arquivoId, String usuarioId) {

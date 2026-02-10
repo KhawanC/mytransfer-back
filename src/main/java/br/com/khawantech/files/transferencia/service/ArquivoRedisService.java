@@ -60,4 +60,10 @@ public class ArquivoRedisService {
 
         log.debug("Arquivo removido do Redis: {}", arquivoId);
     }
+
+    public void removerArquivo(String arquivoId) {
+        String idKey = ARQUIVO_PREFIX + arquivoId;
+        arquivoRedisTemplate.delete(idKey);
+        log.debug("Arquivo removido do Redis: {}", arquivoId);
+    }
 }

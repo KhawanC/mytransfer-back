@@ -24,6 +24,7 @@ public class ArquivoResponse {
     private double progressoUpload;
     private int totalChunks;
     private int chunksRecebidos;
+    private String mensagemErro;
     private Instant criadoEm;
     private Instant atualizadoEm;
 }

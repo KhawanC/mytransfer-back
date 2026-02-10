@@ -14,12 +14,15 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -66,6 +69,8 @@ public class Arquivo implements Serializable {
     private String arquivoOriginalId;
 
     private String formatoConvertido;
+
+    private String mensagemErro;
 
     @CreatedDate
     private Instant criadoEm;
