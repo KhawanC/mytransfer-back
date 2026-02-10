@@ -35,4 +35,12 @@ public interface ArquivoRepository extends MongoRepository<Arquivo, String> {
     long countBySessaoIdAndStatusIn(String sessaoId, List<StatusArquivo> statuses);
 
     List<Arquivo> findBySessaoIdAndStatusIn(String sessaoId, List<StatusArquivo> statuses);
+
+    List<Arquivo> findByArquivoOriginalIdAndStatusIn(String arquivoOriginalId, List<StatusArquivo> statuses);
+
+    boolean existsByArquivoOriginalIdAndFormatoConvertidoAndStatusIn(
+        String arquivoOriginalId,
+        String formatoConvertido,
+        List<StatusArquivo> statuses
+    );
 }

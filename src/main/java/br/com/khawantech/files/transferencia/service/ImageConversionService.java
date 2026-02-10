@@ -34,6 +34,9 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.List;
 import java.util.UUID;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,6 +44,7 @@ import java.util.UUID;
 public class ImageConversionService {
 
     private static final Duration IDENTIFY_TIMEOUT = Duration.ofSeconds(10);
+    private static final List<StatusArquivo> STATUS_CONVERSAO_ATIVOS = List.of(StatusArquivo.PROCESSANDO, StatusArquivo.COMPLETO);
 
     private final ArquivoRepository arquivoRepository;
     private final MinioService minioService;
@@ -103,8 +107,19 @@ public class ImageConversionService {
         }
 
         FormatoImagem formato = FormatoImagem.valueOf(formatoDestino);
-        List<FormatoImagem> formatosDisponiveis = getFormatosDisponiveis(arquivo.getTipoMime());
-        
+
+        FormatoImagem.fromMimeType(arquivo.getTipoMime()).ifPresent(formatoAtual -> {
+            if (formatoAtual == formato) {
+                throw new ConversaoNaoSuportadaException("Arquivo já está no formato solicitado");
+            }
+        });
+
+        if (isConversaoDuplicada(arquivo.getId(), formato.name())) {
+            throw new ConversaoNaoSuportadaException("Arquivo já foi convertido para este formato");
+        }
+
+        List<FormatoImagem> formatosDisponiveis = getFormatosDisponiveisFiltrados(arquivo);
+
         if (!formatosDisponiveis.contains(formato)) {
             throw new ConversaoNaoSuportadaException("Formato de conversão não disponível para este arquivo");
         }
@@ -151,6 +166,8 @@ public class ImageConversionService {
             arquivoConvertido.setCaminhoMinio(caminhoMinio);
             arquivoConvertido.setStatus(StatusArquivo.COMPLETO);
             arquivoRepository.save(arquivoConvertido);
+
+            sessaoService.incrementarArquivosTransferidos(arquivoConvertido.getSessaoId());
 
             notificationService.notificarConversaoConcluida(arquivoConvertido.getSessaoId(), arquivoConvertido);
 
@@ -307,6 +324,30 @@ public class ImageConversionService {
         String nomeBase = lastDot > 0 ? nomeOriginal.substring(0, lastDot) : nomeOriginal;
         String novoNome = nomeBase + "_converted." + formatoDestino.getExtension();
         return FileNameSanitizer.sanitize(novoNome);
+    }
+
+    private List<FormatoImagem> getFormatosDisponiveisFiltrados(Arquivo arquivo) {
+        Set<String> formatosConvertidos = getFormatosConvertidos(arquivo.getId());
+
+        return getFormatosDisponiveis(arquivo.getTipoMime()).stream()
+            .filter(formato -> !formatosConvertidos.contains(formato.name()))
+            .toList();
+    }
+
+    private Set<String> getFormatosConvertidos(String arquivoOriginalId) {
+        return arquivoRepository.findByArquivoOriginalIdAndStatusIn(arquivoOriginalId, STATUS_CONVERSAO_ATIVOS).stream()
+            .map(Arquivo::getFormatoConvertido)
+            .filter(Objects::nonNull)
+            .map(valor -> valor.trim().toUpperCase(Locale.ROOT))
+            .collect(Collectors.toSet());
+    }
+
+    private boolean isConversaoDuplicada(String arquivoOriginalId, String formatoDestino) {
+        return arquivoRepository.existsByArquivoOriginalIdAndFormatoConvertidoAndStatusIn(
+            arquivoOriginalId,
+            formatoDestino,
+            STATUS_CONVERSAO_ATIVOS
+        );
     }
 
     private void limparArquivosTemporarios(Path... paths) {
