@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import br.com.khawantech.files.transferencia.dto.NotificacaoResponse;
 import br.com.khawantech.files.transferencia.dto.ProgressoUploadResponse;
+import br.com.khawantech.files.transferencia.entity.Arquivo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -187,7 +188,29 @@ public class WebSocketNotificationService {
         notificarSessao(sessaoId, notificacao);
     }
 
+    public void notificarConversaoConcluida(String sessaoId, Arquivo arquivoConvertido) {
+        NotificacaoResponse notificacao = NotificacaoResponse.builder()
+            .tipo(NotificacaoResponse.TipoNotificacao.ARQUIVO_CONVERTIDO)
+            .sessaoId(sessaoId)
+            .mensagem("Arquivo convertido com sucesso: " + arquivoConvertido.getNomeOriginal())
+            .dados(new ArquivoConvertido(
+                arquivoConvertido.getId(),
+                arquivoConvertido.getArquivoOriginalId(),
+                arquivoConvertido.getNomeOriginal(),
+                arquivoConvertido.getFormatoConvertido(),
+                arquivoConvertido.getTamanhoBytes()
+            ))
+            .timestamp(Instant.now())
+            .build();
+
+        notificarSessao(sessaoId, notificacao);
+        log.info("Notificação de conversão enviada para sessão {}: arquivo {}", sessaoId, arquivoConvertido.getId());
+    }
+
     public record ArquivoDisponivel(String arquivoId, String nomeArquivo, String urlDownload) {}
+    
+    public record ArquivoConvertido(String arquivoId, String arquivoOriginalId, String nomeArquivo, 
+                                    String formato, Long tamanhoBytes) {}
     
     public record SolicitacaoEntrada(String usuarioConvidadoPendenteId, String nomeUsuario) {}
     

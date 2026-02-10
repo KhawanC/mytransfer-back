@@ -2,8 +2,10 @@ package br.com.khawantech.files.transferencia.entity;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
+import br.com.khawantech.files.transferencia.dto.FormatoImagem;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -24,7 +26,8 @@ import lombok.NoArgsConstructor;
 @Document(collection = "arquivos")
 @CompoundIndexes({
     @CompoundIndex(name = "sessao_status_idx", def = "{'sessaoId': 1, 'status': 1}"),
-    @CompoundIndex(name = "hash_conteudo_idx", def = "{'hashConteudo': 1}")
+    @CompoundIndex(name = "hash_conteudo_idx", def = "{'hashConteudo': 1}"),
+    @CompoundIndex(name = "arquivo_original_idx", def = "{'arquivoOriginalId': 1}")
 })
 public class Arquivo implements Serializable {
 
@@ -57,6 +60,14 @@ public class Arquivo implements Serializable {
     @Builder.Default
     private double progressoUpload = 0.0;
 
+    @Builder.Default
+    private Boolean conversivel = false;
+
+    @Indexed
+    private String arquivoOriginalId;
+
+    private String formatoConvertido;
+
     @CreatedDate
     private Instant criadoEm;
 
@@ -78,5 +89,16 @@ public class Arquivo implements Serializable {
 
     public boolean uploadCompleto() {
         return this.chunksRecebidos >= this.totalChunks && this.totalChunks > 0;
+    }
+
+    public boolean isConversao() {
+        return this.arquivoOriginalId != null;
+    }
+
+    public List<FormatoImagem> getFormatosDisponiveis() {
+        if (!Boolean.TRUE.equals(this.conversivel)) {
+            return List.of();
+        }
+        return FormatoImagem.getFormatosDisponiveis(this.tipoMime);
     }
 }

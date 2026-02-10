@@ -23,6 +23,9 @@ RUN ./mvnw package -DskipTests -B
 # Production stage
 FROM eclipse-temurin:21-jre-alpine AS runner
 
+# Install ImageMagick for image conversion
+RUN apk add --no-cache imagemagick imagemagick-dev
+
 WORKDIR /app
 
 # Create non-root user

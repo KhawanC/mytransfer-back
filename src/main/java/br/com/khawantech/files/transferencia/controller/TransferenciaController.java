@@ -23,6 +23,7 @@ import br.com.khawantech.files.transferencia.dto.ProgressoDetalhadoResponse;
 import br.com.khawantech.files.transferencia.dto.ProgressoUploadResponse;
 import br.com.khawantech.files.transferencia.dto.RejeitarEntradaRequest;
 import br.com.khawantech.files.transferencia.dto.SairSessaoRequest;
+import br.com.khawantech.files.transferencia.dto.SessaoEstatisticasResponse;
 import br.com.khawantech.files.transferencia.dto.SessaoLimitesResponse;
 import br.com.khawantech.files.transferencia.dto.SessaoResponse;
 import br.com.khawantech.files.transferencia.dto.UploadPendenteResponse;
@@ -122,6 +123,19 @@ public class TransferenciaController {
                       sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO || 
                       sessao.getStatus() == br.com.khawantech.files.transferencia.entity.StatusSessao.AGUARDANDO_APROVACAO)
             .build());
+    }
+
+    @GetMapping("/sessao/{sessaoId}/limites")
+    public ResponseEntity<SessaoEstatisticasResponse> obterEstatisticasSessao(
+            @PathVariable String sessaoId,
+            @AuthenticationPrincipal User user) {
+        log.info("REST: Usuário {} consultando estatísticas da sessão {}", user.getId(), sessaoId);
+        
+        Sessao sessao = sessaoService.buscarPorId(sessaoId);
+        sessaoService.validarUsuarioPertenceASessao(sessao, user.getId());
+        
+        SessaoEstatisticasResponse estatisticas = sessaoService.obterEstatisticasSessao(sessaoId);
+        return ResponseEntity.ok(estatisticas);
     }
 
     @DeleteMapping("/sessao/{sessaoId}")

@@ -31,18 +31,22 @@ public class RabbitConfig {
     public static final String QUEUE_CHUNK_PROCESSADO = "transferencia.chunk.processado";
     public static final String QUEUE_ARQUIVO_COMPLETO = "transferencia.arquivo.completo";
     public static final String QUEUE_SESSAO_ATUALIZADA = "transferencia.sessao.atualizada";
+    public static final String QUEUE_IMAGE_CONVERSION = "transferencia.image.conversion";
     
     public static final String QUEUE_CHUNK_DLQ = "transferencia.chunk.dlq";
     public static final String QUEUE_ARQUIVO_DLQ = "transferencia.arquivo.dlq";
     public static final String QUEUE_SESSAO_DLQ = "transferencia.sessao.dlq";
+    public static final String QUEUE_IMAGE_CONVERSION_DLQ = "transferencia.image.conversion.dlq";
 
     public static final String ROUTING_KEY_CHUNK = "chunk.processado";
     public static final String ROUTING_KEY_ARQUIVO = "arquivo.completo";
     public static final String ROUTING_KEY_SESSAO = "sessao.atualizada";
+    public static final String ROUTING_KEY_IMAGE_CONVERSION = "image.conversion";
     
     public static final String ROUTING_KEY_CHUNK_DLQ = "chunk.dlq";
     public static final String ROUTING_KEY_ARQUIVO_DLQ = "arquivo.dlq";
     public static final String ROUTING_KEY_SESSAO_DLQ = "sessao.dlq";
+    public static final String ROUTING_KEY_IMAGE_CONVERSION_DLQ = "image.conversion.dlq";
 
     @Bean
     public DirectExchange transferenciaExchange() {
@@ -79,6 +83,14 @@ public class RabbitConfig {
     }
 
     @Bean
+    public Queue imageConversionQueue() {
+        return QueueBuilder.durable(QUEUE_IMAGE_CONVERSION)
+            .withArgument("x-dead-letter-exchange", EXCHANGE_DLQ)
+            .withArgument("x-dead-letter-routing-key", ROUTING_KEY_IMAGE_CONVERSION_DLQ)
+            .build();
+    }
+
+    @Bean
     public Queue chunkDlqQueue() {
         return QueueBuilder.durable(QUEUE_CHUNK_DLQ).build();
     }
@@ -91,6 +103,11 @@ public class RabbitConfig {
     @Bean
     public Queue sessaoDlqQueue() {
         return QueueBuilder.durable(QUEUE_SESSAO_DLQ).build();
+    }
+
+    @Bean
+    public Queue imageConversionDlqQueue() {
+        return QueueBuilder.durable(QUEUE_IMAGE_CONVERSION_DLQ).build();
     }
 
     @Bean
@@ -109,6 +126,11 @@ public class RabbitConfig {
     }
 
     @Bean
+    public Binding imageConversionBinding(Queue imageConversionQueue, DirectExchange transferenciaExchange) {
+        return BindingBuilder.bind(imageConversionQueue).to(transferenciaExchange).with(ROUTING_KEY_IMAGE_CONVERSION);
+    }
+
+    @Bean
     public Binding chunkDlqBinding(Queue chunkDlqQueue, DirectExchange dlqExchange) {
         return BindingBuilder.bind(chunkDlqQueue).to(dlqExchange).with(ROUTING_KEY_CHUNK_DLQ);
     }
@@ -121,6 +143,11 @@ public class RabbitConfig {
     @Bean
     public Binding sessaoDlqBinding(Queue sessaoDlqQueue, DirectExchange dlqExchange) {
         return BindingBuilder.bind(sessaoDlqQueue).to(dlqExchange).with(ROUTING_KEY_SESSAO_DLQ);
+    }
+
+    @Bean
+    public Binding imageConversionDlqBinding(Queue imageConversionDlqQueue, DirectExchange dlqExchange) {
+        return BindingBuilder.bind(imageConversionDlqQueue).to(dlqExchange).with(ROUTING_KEY_IMAGE_CONVERSION_DLQ);
     }
 
     @Bean

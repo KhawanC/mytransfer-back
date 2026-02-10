@@ -11,12 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 import br.com.khawantech.files.transferencia.config.RabbitConfig;
 import br.com.khawantech.files.transferencia.config.TransferenciaProperties;
 import br.com.khawantech.files.transferencia.dto.SessaoAtualizadaEvent;
+import br.com.khawantech.files.transferencia.dto.SessaoEstatisticasResponse;
 import br.com.khawantech.files.transferencia.dto.SessaoResponse;
 import br.com.khawantech.files.transferencia.entity.Sessao;
+import br.com.khawantech.files.transferencia.entity.StatusArquivo;
 import br.com.khawantech.files.transferencia.entity.StatusSessao;
 import br.com.khawantech.files.transferencia.exception.SessaoExpiradaException;
 import br.com.khawantech.files.transferencia.exception.SessaoLotadaException;
 import br.com.khawantech.files.transferencia.exception.SessaoNaoEncontradaException;
+import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.SessaoRepository;
 import br.com.khawantech.files.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SessaoService {
 
     private final SessaoRepository sessaoRepository;
+    private final ArquivoRepository arquivoRepository;
     private final SessaoRedisService sessaoRedisService;
     private final QRCodeService qrCodeService;
     private final TransferenciaProperties properties;
@@ -499,6 +503,59 @@ public class SessaoService {
             .duracaoMinutos(limites.sessaoDuracaoMinutos())
             .userType(usuarioCriador.getUserType().name())
             .arquivosIlimitados(limites.hasUnlimitedFiles())
+            .build();
+    }
+
+    public boolean podeAdicionarArquivo(String sessaoId) {
+        Sessao sessao = buscarPorId(sessaoId);
+        
+        br.com.khawantech.files.user.entity.User usuarioCriador = userRepository.findById(sessao.getUsuarioCriadorId())
+            .orElseThrow(() -> new RuntimeException("Usuário criador não encontrado"));
+        
+        TransferenciaProperties.UserLimits limites = properties.getLimitsForUserType(usuarioCriador.getUserType());
+        
+        if (limites.hasUnlimitedFiles()) {
+            return true;
+        }
+        
+        long quantidadeArquivos = arquivoRepository.countBySessaoIdAndStatusIn(
+            sessaoId, 
+            List.of(StatusArquivo.COMPLETO, StatusArquivo.ENVIANDO, StatusArquivo.PROCESSANDO)
+        );
+        
+        return quantidadeArquivos < limites.maxArquivos();
+    }
+
+    public SessaoEstatisticasResponse obterEstatisticasSessao(String sessaoId) {
+        Sessao sessao = buscarPorId(sessaoId);
+        
+        br.com.khawantech.files.user.entity.User usuarioCriador = userRepository.findById(sessao.getUsuarioCriadorId())
+            .orElseThrow(() -> new RuntimeException("Usuário criador não encontrado"));
+        
+        TransferenciaProperties.UserLimits limites = properties.getLimitsForUserType(usuarioCriador.getUserType());
+        
+        int quantidadeArquivos = (int) arquivoRepository.countBySessaoIdAndStatusIn(
+            sessaoId, 
+            List.of(StatusArquivo.COMPLETO, StatusArquivo.ENVIANDO, StatusArquivo.PROCESSANDO)
+        );
+        
+        long tamanhoTotal = arquivoRepository.findBySessaoIdAndStatusIn(
+            sessaoId, 
+            List.of(StatusArquivo.COMPLETO)
+        ).stream()
+            .mapToLong(arquivo -> arquivo.getTamanhoBytes())
+            .sum();
+        
+        int espacoDisponivel = limites.hasUnlimitedFiles() 
+            ? Integer.MAX_VALUE 
+            : limites.maxArquivos() - quantidadeArquivos;
+        
+        return SessaoEstatisticasResponse.builder()
+            .quantidadeArquivos(quantidadeArquivos)
+            .limiteArquivos(limites.maxArquivos())
+            .tamanhoTotalBytes(tamanhoTotal)
+            .limiteTamanhoBytes(limites.maxTamanhoBytes())
+            .espacoDisponivel(Math.max(0, espacoDisponivel))
             .build();
     }
 }

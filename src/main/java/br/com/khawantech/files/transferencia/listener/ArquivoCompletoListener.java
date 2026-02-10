@@ -6,7 +6,10 @@ import org.springframework.stereotype.Component;
 
 import br.com.khawantech.files.transferencia.config.RabbitConfig;
 import br.com.khawantech.files.transferencia.dto.ArquivoCompletoEvent;
+import br.com.khawantech.files.transferencia.entity.Arquivo;
+import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.service.DownloadTokenService;
+import br.com.khawantech.files.transferencia.service.ImageConversionService;
 import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +21,8 @@ public class ArquivoCompletoListener {
 
     private final WebSocketNotificationService notificationService;
     private final DownloadTokenService downloadTokenService;
+    private final ImageConversionService imageConversionService;
+    private final ArquivoRepository arquivoRepository;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -27,6 +32,8 @@ public class ArquivoCompletoListener {
         log.info("Arquivo completo recebido: {} - {}", event.getArquivoId(), event.getNomeOriginal());
 
         try {
+            detectarImagemConversivel(event);
+
             String token = downloadTokenService.gerarToken(event.getArquivoId(), event.getRemetenteId());
             String urlDownload = baseUrl + "/api/files/d/" + token;
 
@@ -46,6 +53,21 @@ public class ArquivoCompletoListener {
                 event.getArquivoId(),
                 "Erro ao processar arquivo: " + e.getMessage()
             );
+        }
+    }
+
+    private void detectarImagemConversivel(ArquivoCompletoEvent event) {
+        try {
+            if (imageConversionService.isImagemConversivel(event.getTipoMime())) {
+                arquivoRepository.findById(event.getArquivoId()).ifPresent(arquivo -> {
+                    arquivo.setConversivel(true);
+                    arquivoRepository.save(arquivo);
+                    log.info("Arquivo {} marcado como conversível", event.getArquivoId());
+                });
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao detectar imagem conversível para arquivo {}: {}", 
+                event.getArquivoId(), e.getMessage());
         }
     }
 }

@@ -33,6 +33,7 @@ public class NotificacaoResponse {
         UPLOAD_PROGRESSO,
         UPLOAD_COMPLETO,
         UPLOAD_ERRO,
-        ARQUIVO_DISPONIVEL
+        ARQUIVO_DISPONIVEL,
+        ARQUIVO_CONVERTIDO
     }
 }

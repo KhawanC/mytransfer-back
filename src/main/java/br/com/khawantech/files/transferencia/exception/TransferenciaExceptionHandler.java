@@ -102,6 +102,42 @@ public class TransferenciaExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    @ExceptionHandler(ConversaoNaoSuportadaException.class)
+    public ResponseEntity<ErrorResponse> handleConversaoNaoSuportada(ConversaoNaoSuportadaException ex) {
+        log.warn("Conversão não suportada: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error("Bad Request")
+            .message(ex.getMessage())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(EspacoSessaoInsuficienteException.class)
+    public ResponseEntity<ErrorResponse> handleEspacoSessaoInsuficiente(EspacoSessaoInsuficienteException ex) {
+        log.warn("Espaço insuficiente na sessão: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.TOO_MANY_REQUESTS.value())
+            .error("Too Many Requests")
+            .message(ex.getMessage())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(error);
+    }
+
+    @ExceptionHandler(RecursoNaoEncontradoException.class)
+    public ResponseEntity<ErrorResponse> handleRecursoNaoEncontrado(RecursoNaoEncontradoException ex) {
+        log.warn("Recurso não encontrado: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.NOT_FOUND.value())
+            .error("Not Found")
+            .message(ex.getMessage())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> validationErrors = new HashMap<>();
