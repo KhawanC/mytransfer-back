@@ -401,6 +401,9 @@ public class ArquivoService {
             .mensagemErro(arquivo.getMensagemErro())
             .criadoEm(arquivo.getCriadoEm())
             .atualizadoEm(arquivo.getAtualizadoEm())
+            .conversivel(arquivo.getConversivel())
+            .arquivoOriginalId(arquivo.getArquivoOriginalId())
+            .formatoConvertido(arquivo.getFormatoConvertido())
             .build();
     }
 

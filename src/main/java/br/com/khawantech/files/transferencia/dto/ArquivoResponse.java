@@ -27,4 +27,7 @@ public class ArquivoResponse {
     private String mensagemErro;
     private Instant criadoEm;
     private Instant atualizadoEm;
+    private Boolean conversivel;
+    private String arquivoOriginalId;
+    private String formatoConvertido;
 }
