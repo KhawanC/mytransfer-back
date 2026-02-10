@@ -304,8 +304,11 @@ public class SessaoService {
         if (sessao.getStatus() != StatusSessao.ATIVA && sessao.getStatus() != StatusSessao.AGUARDANDO) {
             throw new IllegalStateException("Upload só é permitido em sessões ativas ou aguardando participantes. Status atual: " + sessao.getStatus());
         }
-        
-        validarSessaoAtiva(sessao);
+
+        if (sessao.getExpiraEm() != null && Instant.now().isAfter(sessao.getExpiraEm())) {
+            expirarSessao(sessao);
+            throw new SessaoExpiradaException("Sessão expirada: " + sessao.getId());
+        }
     }
 
     public void validarLimiteArquivos(Sessao sessao) {
