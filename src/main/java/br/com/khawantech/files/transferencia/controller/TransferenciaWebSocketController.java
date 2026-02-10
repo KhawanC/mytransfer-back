@@ -74,7 +74,7 @@ public class TransferenciaWebSocketController {
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
-        SessaoResponse response = sessaoService.aprovarEntrada(request.getSessaoId(), usuarioId);
+        SessaoResponse response = sessaoService.aprovarEntrada(request.getSessaoId(), usuarioId, request.getUsuarioId());
 
         return response;
     }
@@ -89,7 +89,7 @@ public class TransferenciaWebSocketController {
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
-        sessaoService.rejeitarEntrada(request.getSessaoId(), usuarioId);
+        sessaoService.rejeitarEntrada(request.getSessaoId(), usuarioId, request.getUsuarioId());
     }
 
     @MessageMapping("/sessao/sair")

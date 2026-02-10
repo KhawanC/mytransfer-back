@@ -23,6 +23,7 @@ public class TransferenciaProperties {
         private int sessaoDuracaoMinutos = 10;
         private int maxArquivos = 10;
         private long maxTamanhoMb = 150;
+        private int maxParticipantes = 2;
     }
 
     @Data
@@ -30,13 +31,15 @@ public class TransferenciaProperties {
         private int sessaoDuracaoMinutos = 30;
         private int maxArquivos = 25;
         private long maxTamanhoMb = 250;
+        private int maxParticipantes = 2;
     }
 
     @Data
     public static class PremiumLimits {
-        private int sessaoDuracaoMinutos = 60;
+        private int sessaoDuracaoMinutos = 300;
         private Integer maxArquivos = null;
         private long maxTamanhoMb = 5120;
+        private int maxParticipantes = 10;
     }
 
     public UserLimits getLimitsForUserType(UserType userType) {
@@ -44,17 +47,20 @@ public class TransferenciaProperties {
             case GUEST -> new UserLimits(
                 guest.getSessaoDuracaoMinutos(),
                 guest.getMaxArquivos(),
-                guest.getMaxTamanhoMb()
+                guest.getMaxTamanhoMb(),
+                guest.getMaxParticipantes()
             );
             case FREE -> new UserLimits(
                 free.getSessaoDuracaoMinutos(),
                 free.getMaxArquivos(),
-                free.getMaxTamanhoMb()
+                free.getMaxTamanhoMb(),
+                free.getMaxParticipantes()
             );
             case PREMIUM -> new UserLimits(
                 premium.getSessaoDuracaoMinutos(),
                 premium.getMaxArquivos(),
-                premium.getMaxTamanhoMb()
+                premium.getMaxTamanhoMb(),
+                premium.getMaxParticipantes()
             );
         };
     }
@@ -70,7 +76,8 @@ public class TransferenciaProperties {
     public record UserLimits(
         int sessaoDuracaoMinutos,
         Integer maxArquivos,
-        long maxTamanhoMb
+        long maxTamanhoMb,
+        int maxParticipantes
     ) {
         public long maxTamanhoBytes() {
             return maxTamanhoMb * 1024 * 1024;
@@ -82,6 +89,10 @@ public class TransferenciaProperties {
 
         public boolean hasUnlimitedFiles() {
             return maxArquivos == null;
+        }
+
+        public int maxConvidados() {
+            return Math.max(0, maxParticipantes - 1);
         }
     }
 }

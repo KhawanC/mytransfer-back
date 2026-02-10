@@ -52,6 +52,7 @@ public class SecurityConfig {
         "/swagger-ui/**",
         "/v3/api-docs/**",
         "/ws/**",
+        "/api/assinaturas/webhook",
         "/api/files/d/**",    // Download com token temporário
         "/api/files/p/**"     // Preview com token temporário
     };

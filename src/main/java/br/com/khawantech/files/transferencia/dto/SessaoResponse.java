@@ -1,6 +1,7 @@
 package br.com.khawantech.files.transferencia.dto;
 
 import java.time.Instant;
+import java.util.List;
 
 import br.com.khawantech.files.transferencia.entity.StatusSessao;
 import lombok.AllArgsConstructor;
@@ -22,6 +23,8 @@ public class SessaoResponse {
     private String usuarioConvidadoId;
     private String usuarioConvidadoPendenteId;
     private String nomeUsuarioConvidadoPendente;
+    private List<String> usuariosConvidadosIds;
+    private List<PendenteEntradaResponse> usuariosPendentes;
     private int totalArquivosTransferidos;
     private Instant criadaEm;
     private Instant expiraEm;

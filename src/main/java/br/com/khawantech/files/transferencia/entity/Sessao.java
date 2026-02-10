@@ -2,6 +2,8 @@ package br.com.khawantech.files.transferencia.entity;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.annotation.CreatedDate;
@@ -37,6 +39,12 @@ public class Sessao implements Serializable {
     private String usuarioConvidadoPendenteId;
     
     private String nomeUsuarioConvidadoPendente;
+
+    @Builder.Default
+    private List<String> usuariosConvidadosIds = new ArrayList<>();
+
+    @Builder.Default
+    private List<PendenteEntrada> usuariosPendentes = new ArrayList<>();
 
     @Indexed
     @Builder.Default
@@ -84,6 +92,14 @@ public class Sessao implements Serializable {
         return this.totalArquivosTransferidos < limiteArquivos;
     }
 
+    public int totalConvidados() {
+        return this.usuariosConvidadosIds != null ? this.usuariosConvidadosIds.size() : 0;
+    }
+
+    public int totalPendentes() {
+        return this.usuariosPendentes != null ? this.usuariosPendentes.size() : 0;
+    }
+
     public boolean estaAtiva() {
         return this.status == StatusSessao.ATIVA && 
                this.expiraEm != null && 
@@ -92,5 +108,15 @@ public class Sessao implements Serializable {
 
     public boolean estaAguardando() {
         return this.status == StatusSessao.AGUARDANDO;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PendenteEntrada implements Serializable {
+        private String usuarioId;
+        private String nomeUsuario;
+        private Instant solicitadoEm;
     }
 }

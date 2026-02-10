@@ -32,6 +32,6 @@ public interface SessaoRepository extends MongoRepository<Sessao, String> {
 
     List<Sessao> findByUsuarioCriadorIdOrUsuarioConvidadoIdOrderByCriadaEmDesc(String usuarioCriadorId, String usuarioConvidadoId);
     
-    @Query("{ $or: [ { 'usuarioCriadorId': ?0 }, { 'usuarioConvidadoId': ?0 }, { 'usuarioConvidadoPendenteId': ?0 } ] }")
+    @Query("{ $or: [ { 'usuarioCriadorId': ?0 }, { 'usuarioConvidadoId': ?0 }, { 'usuarioConvidadoPendenteId': ?0 }, { 'usuariosConvidadosIds': ?0 }, { 'usuariosPendentes.usuarioId': ?0 } ] }")
     List<Sessao> findSessoesDoUsuario(String usuarioId);
 }

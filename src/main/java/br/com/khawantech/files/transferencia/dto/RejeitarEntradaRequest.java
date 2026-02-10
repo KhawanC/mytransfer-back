@@ -14,4 +14,7 @@ public class RejeitarEntradaRequest {
 
     @NotBlank(message = "ID da sessão é obrigatório")
     private String sessaoId;
+
+    @NotBlank(message = "ID do usuário é obrigatório")
+    private String usuarioId;
 }

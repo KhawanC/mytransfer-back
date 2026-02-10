@@ -95,11 +95,12 @@ public class WebSocketNotificationService {
         notificarSessao(sessaoId, notificacao);
     }
 
-    public void notificarEntradaRejeitada(String sessaoId) {
+    public void notificarEntradaRejeitada(String sessaoId, String usuarioId) {
         NotificacaoResponse notificacao = NotificacaoResponse.builder()
             .tipo(NotificacaoResponse.TipoNotificacao.ENTRADA_REJEITADA)
             .sessaoId(sessaoId)
             .mensagem("Sua entrada na sessão foi rejeitada")
+            .dados(usuarioId)
             .timestamp(Instant.now())
             .build();
 

@@ -26,6 +26,7 @@ public class NotificacaoResponse {
         SOLICITACAO_ENTRADA_CRIADOR,
         ENTRADA_APROVADA,
         ENTRADA_REJEITADA,
+        ASSINATURA_PAGA,
         SESSAO_ENCERRADA,
         SESSAO_EXPIRADA,
         HASH_ATUALIZADO,

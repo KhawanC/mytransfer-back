@@ -77,7 +77,7 @@ public class TransferenciaController {
             @Valid @RequestBody AprovarEntradaRequest request,
             @AuthenticationPrincipal User user) {
         log.info("REST: Usuário {} aprovando entrada na sessão {}", user.getId(), request.getSessaoId());
-        SessaoResponse response = sessaoService.aprovarEntrada(request.getSessaoId(), user.getId());
+        SessaoResponse response = sessaoService.aprovarEntrada(request.getSessaoId(), user.getId(), request.getUsuarioId());
         return ResponseEntity.ok(response);
     }
 
@@ -86,7 +86,7 @@ public class TransferenciaController {
             @Valid @RequestBody RejeitarEntradaRequest request,
             @AuthenticationPrincipal User user) {
         log.info("REST: Usuário {} rejeitando entrada na sessão {}", user.getId(), request.getSessaoId());
-        sessaoService.rejeitarEntrada(request.getSessaoId(), user.getId());
+        sessaoService.rejeitarEntrada(request.getSessaoId(), user.getId(), request.getUsuarioId());
         return ResponseEntity.noContent().build();
     }
 
@@ -106,14 +106,39 @@ public class TransferenciaController {
         Sessao sessao = sessaoService.buscarPorId(sessaoId);
         sessaoService.validarUsuarioPertenceASessao(sessao, user.getId());
 
+        String usuarioConvidadoId = sessao.getUsuarioConvidadoId();
+        if (usuarioConvidadoId == null && sessao.getUsuariosConvidadosIds() != null && !sessao.getUsuariosConvidadosIds().isEmpty()) {
+            usuarioConvidadoId = sessao.getUsuariosConvidadosIds().get(0);
+        }
+
+        String usuarioConvidadoPendenteId = sessao.getUsuarioConvidadoPendenteId();
+        String nomeUsuarioConvidadoPendente = sessao.getNomeUsuarioConvidadoPendente();
+        if (usuarioConvidadoPendenteId == null && sessao.getUsuariosPendentes() != null && !sessao.getUsuariosPendentes().isEmpty()) {
+            var pendente = sessao.getUsuariosPendentes().get(0);
+            usuarioConvidadoPendenteId = pendente.getUsuarioId();
+            nomeUsuarioConvidadoPendente = pendente.getNomeUsuario();
+        }
+
         return ResponseEntity.ok(SessaoResponse.builder()
             .id(sessao.getId())
             .hashConexao(sessao.getHashConexao())
             .status(sessao.getStatus())
             .usuarioCriadorId(sessao.getUsuarioCriadorId())
-            .usuarioConvidadoId(sessao.getUsuarioConvidadoId())
-            .usuarioConvidadoPendenteId(sessao.getUsuarioConvidadoPendenteId())
-            .nomeUsuarioConvidadoPendente(sessao.getNomeUsuarioConvidadoPendente())
+            .usuarioConvidadoId(usuarioConvidadoId)
+            .usuarioConvidadoPendenteId(usuarioConvidadoPendenteId)
+            .nomeUsuarioConvidadoPendente(nomeUsuarioConvidadoPendente)
+            .usuariosConvidadosIds(sessao.getUsuariosConvidadosIds() != null
+                ? List.copyOf(sessao.getUsuariosConvidadosIds())
+                : List.of())
+            .usuariosPendentes(sessao.getUsuariosPendentes() != null
+                ? sessao.getUsuariosPendentes().stream()
+                    .map(pendente -> br.com.khawantech.files.transferencia.dto.PendenteEntradaResponse.builder()
+                        .usuarioId(pendente.getUsuarioId())
+                        .nomeUsuario(pendente.getNomeUsuario())
+                        .solicitadoEm(pendente.getSolicitadoEm())
+                        .build())
+                    .toList()
+                : List.of())
             .totalArquivosTransferidos(sessao.getTotalArquivosTransferidos())
             .criadaEm(sessao.getCriadaEm())
             .expiraEm(sessao.getExpiraEm())

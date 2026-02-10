@@ -36,6 +36,12 @@
 		<tika.version>2.9.2</tika.version>
 		<jaffree.version>2024.08.29</jaffree.version>
 	</properties>
+	<repositories>
+		<repository>
+			<id>jitpack.io</id>
+			<url>https://jitpack.io</url>
+		</repository>
+	</repositories>
 	<dependencies>
 		<!-- Spring Boot Starters -->
 		<dependency>
@@ -193,6 +199,11 @@
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.github.woovibr</groupId>
+			<artifactId>java-sdk</artifactId>
+			<version>0.0.20-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 

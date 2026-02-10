@@ -36,11 +36,6 @@ public class SessaoAtualizadaListener {
             notificationService.notificarUsuarioEntrou(event.getSessaoId(), event.getUsuarioConvidadoId());
         }
 
-        if (event.getStatusNovo() == StatusSessao.AGUARDANDO &&
-            event.getStatusAnterior() == StatusSessao.AGUARDANDO_APROVACAO) {
-            notificationService.notificarEntradaRejeitada(event.getSessaoId());
-        }
-
         if (event.getStatusNovo() == StatusSessao.ENCERRADA) {
             notificationService.notificarSessaoEncerrada(event.getSessaoId(), event.getMotivo());
         }

@@ -1,6 +1,7 @@
 package br.com.khawantech.files.transferencia.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,11 +11,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AprovarEntradaRequest {
-
-    @NotBlank(message = "ID da sessão é obrigatório")
-    private String sessaoId;
-
-    @NotBlank(message = "ID do usuário é obrigatório")
+public class PendenteEntradaResponse {
     private String usuarioId;
+    private String nomeUsuario;
+    private Instant solicitadoEm;
 }

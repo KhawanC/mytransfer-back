@@ -74,9 +74,16 @@ public class SessaoService {
     @Transactional
     public SessaoResponse entrarSessao(String hashConexao, String usuarioConvidadoId) {
         Sessao sessao = buscarPorHash(hashConexao);
+        normalizarListas(sessao);
 
-        boolean jaEstaAssociado = usuarioConvidadoId.equals(sessao.getUsuarioConvidadoId()) ||
-                                  usuarioConvidadoId.equals(sessao.getUsuarioConvidadoPendenteId());
+        if (usuarioConvidadoId.equals(sessao.getUsuarioCriadorId())) {
+            return toSessaoResponse(sessao, null, usuarioConvidadoId);
+        }
+
+        boolean jaEstaAssociado = sessao.getUsuariosConvidadosIds().contains(usuarioConvidadoId) ||
+            sessao.getUsuariosPendentes().stream().anyMatch(p -> usuarioConvidadoId.equals(p.getUsuarioId())) ||
+            usuarioConvidadoId.equals(sessao.getUsuarioConvidadoId()) ||
+            usuarioConvidadoId.equals(sessao.getUsuarioConvidadoPendenteId());
 
         if (jaEstaAssociado) {
             log.info("Usuário {} já está associado à sessão {}, retornando sessão existente", 
@@ -84,7 +91,9 @@ public class SessaoService {
             return toSessaoResponse(sessao, null, usuarioConvidadoId);
         }
 
-        validarSessaoParaEntrada(sessao, usuarioConvidadoId);
+        TransferenciaProperties.UserLimits limites = obterLimitesCriador(sessao);
+
+        validarSessaoParaEntrada(sessao, usuarioConvidadoId, limites);
 
         String lockId = lockRedisService.adquirirLock(lockRedisService.getLockSessao(sessao.getId()));
         if (lockId == null) {
@@ -95,15 +104,33 @@ public class SessaoService {
             br.com.khawantech.files.user.entity.User usuario = userRepository.findById(usuarioConvidadoId)
                 .orElseThrow(() -> new AuthenticationException("Sessão expirada"));
 
-            sessao.setUsuarioConvidadoPendenteId(usuarioConvidadoId);
-            sessao.setNomeUsuarioConvidadoPendente(usuario.getName());
-            sessao.setStatus(StatusSessao.AGUARDANDO_APROVACAO);
+            StatusSessao statusAnterior = sessao.getStatus();
+
+            Sessao.PendenteEntrada pendente = Sessao.PendenteEntrada.builder()
+                .usuarioId(usuarioConvidadoId)
+                .nomeUsuario(usuario.getName())
+                .solicitadoEm(Instant.now())
+                .build();
+
+            sessao.getUsuariosPendentes().add(pendente);
+
+            if (sessao.getStatus() == StatusSessao.AGUARDANDO) {
+                sessao.setStatus(StatusSessao.AGUARDANDO_APROVACAO);
+            }
             sessao.setAtualizadaEm(Instant.now());
+
+            sincronizarLegado(sessao);
 
             sessao = sessaoRepository.save(sessao);
             sessaoRedisService.atualizarSessao(sessao);
 
-            publicarAtualizacaoSessao(sessao, StatusSessao.AGUARDANDO, "Usuário solicitou entrada na sessão");
+            publicarAtualizacaoSessao(sessao, statusAnterior, "Usuário solicitou entrada na sessão");
+
+            webSocketNotificationService.notificarSolicitacaoEntrada(
+                sessao.getId(),
+                usuarioConvidadoId,
+                usuario.getName()
+            );
 
             webSocketNotificationService.notificarSolicitacaoEntradaCriador(
                 sessao.getUsuarioCriadorId(),
@@ -120,15 +147,12 @@ public class SessaoService {
     }
 
     @Transactional
-    public SessaoResponse aprovarEntrada(String sessaoId, String usuarioCriadorId) {
+    public SessaoResponse aprovarEntrada(String sessaoId, String usuarioCriadorId, String usuarioAprovadoId) {
         Sessao sessao = buscarPorId(sessaoId);
+        normalizarListas(sessao);
 
         if (!sessao.getUsuarioCriadorId().equals(usuarioCriadorId)) {
             throw new IllegalArgumentException("Apenas o criador da sessão pode aprovar a entrada");
-        }
-
-        if (sessao.getStatus() != StatusSessao.AGUARDANDO_APROVACAO) {
-            throw new IllegalStateException("Não há solicitação de entrada pendente para esta sessão");
         }
 
         String lockId = lockRedisService.adquirirLock(lockRedisService.getLockSessao(sessao.getId()));
@@ -137,18 +161,32 @@ public class SessaoService {
         }
 
         try {
-            sessao.setUsuarioConvidadoId(sessao.getUsuarioConvidadoPendenteId());
-            sessao.setUsuarioConvidadoPendenteId(null);
-            sessao.setNomeUsuarioConvidadoPendente(null);
-            sessao.setStatus(StatusSessao.ATIVA);
+            StatusSessao statusAnterior = sessao.getStatus();
+            boolean encontrou = sessao.getUsuariosPendentes().removeIf(pendente -> usuarioAprovadoId.equals(pendente.getUsuarioId()));
+            if (!encontrou) {
+                throw new IllegalStateException("Não há solicitação pendente para este usuário");
+            }
+
+            if (!sessao.getUsuariosConvidadosIds().contains(usuarioAprovadoId)) {
+                sessao.getUsuariosConvidadosIds().add(usuarioAprovadoId);
+            }
+
+            atualizarStatusSessao(sessao);
             sessao.setAtualizadaEm(Instant.now());
+
+            sincronizarLegado(sessao);
 
             sessao = sessaoRepository.save(sessao);
             sessaoRedisService.atualizarSessao(sessao);
 
-            publicarAtualizacaoSessao(sessao, StatusSessao.AGUARDANDO_APROVACAO, "Entrada aprovada pelo criador");
+            publicarAtualizacaoSessao(sessao, statusAnterior, "Entrada aprovada pelo criador");
 
-            log.info("Entrada do usuário {} aprovada na sessão {}", sessao.getUsuarioConvidadoId(), sessaoId);
+            if (statusAnterior == StatusSessao.ATIVA) {
+                webSocketNotificationService.notificarEntradaAprovada(sessao.getId(), usuarioAprovadoId);
+                webSocketNotificationService.notificarUsuarioEntrou(sessao.getId(), usuarioAprovadoId);
+            }
+
+            log.info("Entrada do usuário {} aprovada na sessão {}", usuarioAprovadoId, sessaoId);
 
             return toSessaoResponse(sessao, null, usuarioCriadorId);
         } finally {
@@ -157,15 +195,12 @@ public class SessaoService {
     }
 
     @Transactional
-    public void rejeitarEntrada(String sessaoId, String usuarioCriadorId) {
+    public void rejeitarEntrada(String sessaoId, String usuarioCriadorId, String usuarioRejeitadoId) {
         Sessao sessao = buscarPorId(sessaoId);
+        normalizarListas(sessao);
 
         if (!sessao.getUsuarioCriadorId().equals(usuarioCriadorId)) {
             throw new IllegalArgumentException("Apenas o criador da sessão pode rejeitar a entrada");
-        }
-
-        if (sessao.getStatus() != StatusSessao.AGUARDANDO_APROVACAO) {
-            throw new IllegalStateException("Não há solicitação de entrada pendente para esta sessão");
         }
 
         String lockId = lockRedisService.adquirirLock(lockRedisService.getLockSessao(sessao.getId()));
@@ -174,17 +209,23 @@ public class SessaoService {
         }
 
         try {
-            String usuarioRejeitadoId = sessao.getUsuarioConvidadoPendenteId();
+            StatusSessao statusAnterior = sessao.getStatus();
+            boolean encontrou = sessao.getUsuariosPendentes().removeIf(pendente -> usuarioRejeitadoId.equals(pendente.getUsuarioId()));
+            if (!encontrou) {
+                throw new IllegalStateException("Não há solicitação pendente para este usuário");
+            }
 
-            sessao.setUsuarioConvidadoPendenteId(null);
-            sessao.setNomeUsuarioConvidadoPendente(null);
-            sessao.setStatus(StatusSessao.AGUARDANDO);
+            atualizarStatusSessao(sessao);
             sessao.setAtualizadaEm(Instant.now());
+
+            sincronizarLegado(sessao);
 
             sessao = sessaoRepository.save(sessao);
             sessaoRedisService.atualizarSessao(sessao);
 
-            publicarAtualizacaoSessao(sessao, StatusSessao.AGUARDANDO_APROVACAO, "Entrada rejeitada pelo criador");
+            publicarAtualizacaoSessao(sessao, statusAnterior, "Entrada rejeitada pelo criador");
+
+            webSocketNotificationService.notificarEntradaRejeitada(sessao.getId(), usuarioRejeitadoId);
 
             log.info("Entrada do usuário {} rejeitada na sessão {}", usuarioRejeitadoId, sessaoId);
         } finally {
@@ -195,9 +236,11 @@ public class SessaoService {
     @Transactional
     public void sairDaSessao(String sessaoId, String usuarioConvidadoId) {
         Sessao sessao = buscarPorId(sessaoId);
+        normalizarListas(sessao);
 
-        boolean eConvidadoPendente = usuarioConvidadoId.equals(sessao.getUsuarioConvidadoPendenteId());
-        boolean eConvidadoAprovado = usuarioConvidadoId.equals(sessao.getUsuarioConvidadoId());
+        boolean eConvidadoPendente = sessao.getUsuariosPendentes().stream()
+            .anyMatch(pendente -> usuarioConvidadoId.equals(pendente.getUsuarioId()));
+        boolean eConvidadoAprovado = sessao.getUsuariosConvidadosIds().contains(usuarioConvidadoId);
         
         if (!eConvidadoPendente && !eConvidadoAprovado) {
             throw new IllegalArgumentException("Apenas o usuário convidado pode sair da sessão");
@@ -217,16 +260,17 @@ public class SessaoService {
             StatusSessao statusAnterior = sessao.getStatus();
             
             if (eConvidadoPendente) {
-                sessao.setUsuarioConvidadoPendenteId(null);
-                sessao.setNomeUsuarioConvidadoPendente(null);
+                sessao.getUsuariosPendentes().removeIf(pendente -> usuarioConvidadoId.equals(pendente.getUsuarioId()));
                 log.info("Usuário convidado pendente {} saiu da sessão {}", usuarioConvidadoId, sessaoId);
             } else {
-                sessao.setUsuarioConvidadoId(null);
+                sessao.getUsuariosConvidadosIds().removeIf(id -> usuarioConvidadoId.equals(id));
                 log.info("Usuário convidado {} saiu da sessão {}", usuarioConvidadoId, sessaoId);
             }
 
-            sessao.setStatus(StatusSessao.AGUARDANDO);
+            atualizarStatusSessao(sessao);
             sessao.setAtualizadaEm(Instant.now());
+
+            sincronizarLegado(sessao);
 
             sessao = sessaoRepository.save(sessao);
             sessaoRedisService.atualizarSessao(sessao);
@@ -236,6 +280,43 @@ public class SessaoService {
             webSocketNotificationService.notificarUsuarioSaiu(sessaoId, usuarioConvidadoId);
         } finally {
             lockRedisService.liberarLock(lockRedisService.getLockSessao(sessao.getId()), lockId);
+        }
+    }
+
+    @Transactional
+    public void removerParticipacaoUsuario(String sessaoId, String usuarioId) {
+        Sessao sessao = buscarPorId(sessaoId);
+        normalizarListas(sessao);
+
+        if (usuarioId.equals(sessao.getUsuarioCriadorId())) {
+            return;
+        }
+
+        boolean removeuPendente = sessao.getUsuariosPendentes().removeIf(pendente -> usuarioId.equals(pendente.getUsuarioId()));
+        boolean removeuConvidado = sessao.getUsuariosConvidadosIds().removeIf(id -> usuarioId.equals(id));
+
+        if (!removeuPendente && !removeuConvidado) {
+            return;
+        }
+
+        StatusSessao statusAnterior = sessao.getStatus();
+
+        if (statusAnterior == StatusSessao.AGUARDANDO ||
+            statusAnterior == StatusSessao.AGUARDANDO_APROVACAO ||
+            statusAnterior == StatusSessao.ATIVA) {
+            atualizarStatusSessao(sessao);
+        }
+
+        sessao.setAtualizadaEm(Instant.now());
+        sincronizarLegado(sessao);
+
+        sessao = sessaoRepository.save(sessao);
+        sessaoRedisService.atualizarSessao(sessao);
+
+        publicarAtualizacaoSessao(sessao, statusAnterior, "Usuário removido da sessão");
+
+        if (statusAnterior == StatusSessao.ATIVA) {
+            webSocketNotificationService.notificarUsuarioSaiu(sessaoId, usuarioId);
         }
     }
 
@@ -355,18 +436,21 @@ public class SessaoService {
     }
 
     public void validarUsuarioPertenceASessao(Sessao sessao, String usuarioId) {
+        normalizarListas(sessao);
         boolean pertence = usuarioId.equals(sessao.getUsuarioCriadorId()) ||
-                          usuarioId.equals(sessao.getUsuarioConvidadoId()) ||
-                          usuarioId.equals(sessao.getUsuarioConvidadoPendenteId());
+            sessao.getUsuariosConvidadosIds().contains(usuarioId) ||
+            sessao.getUsuariosPendentes().stream().anyMatch(pendente -> usuarioId.equals(pendente.getUsuarioId())) ||
+            usuarioId.equals(sessao.getUsuarioConvidadoId()) ||
+            usuarioId.equals(sessao.getUsuarioConvidadoPendenteId());
 
         if (!pertence) {
             throw new SessaoNaoEncontradaException("Usuário não pertence à sessão");
         }
     }
 
-    private void validarSessaoParaEntrada(Sessao sessao, String usuarioConvidadoId) {
-        if (!sessao.estaAguardando()) {
-            throw new SessaoLotadaException("Sessão já possui dois participantes ou não está disponível");
+    private void validarSessaoParaEntrada(Sessao sessao, String usuarioConvidadoId, TransferenciaProperties.UserLimits limites) {
+        if (sessao.getStatus() == StatusSessao.ENCERRADA || sessao.getStatus() == StatusSessao.EXPIRADA) {
+            throw new SessaoLotadaException("Sessão não está disponível");
         }
 
         if (sessao.getUsuarioCriadorId().equals(usuarioConvidadoId)) {
@@ -376,6 +460,14 @@ public class SessaoService {
         if (sessao.getExpiraEm() != null && Instant.now().isAfter(sessao.getExpiraEm())) {
             expirarSessao(sessao);
             throw new SessaoExpiradaException("Sessão expirada");
+        }
+
+        int totalConvidados = sessao.getUsuariosConvidadosIds().size();
+        int totalPendentes = sessao.getUsuariosPendentes().size();
+        int maxConvidados = limites.maxConvidados();
+
+        if (totalConvidados + totalPendentes >= maxConvidados) {
+            throw new SessaoLotadaException("Sessão já atingiu o limite de participantes");
         }
     }
 
@@ -444,26 +536,89 @@ public class SessaoService {
             .map(sessao -> toSessaoResponse(sessao, null, usuarioId))
             .toList();
     }
-    
-    private void validarUsuarioSemSessaoAtiva(String usuarioId) {
-        List<StatusSessao> statusesAtivos = List.of(StatusSessao.AGUARDANDO, StatusSessao.AGUARDANDO_APROVACAO, StatusSessao.ATIVA);
 
-        for (StatusSessao status : statusesAtivos) {
-            List<Sessao> sessoesComoCriador = sessaoRepository.findByUsuarioCriadorIdAndStatus(usuarioId, status);
-            if (!sessoesComoCriador.isEmpty()) {
-                throw new IllegalStateException("Você já possui uma sessão ativa");
-            }
+    private TransferenciaProperties.UserLimits obterLimitesCriador(Sessao sessao) {
+        br.com.khawantech.files.user.entity.User usuario = userRepository.findById(sessao.getUsuarioCriadorId())
+            .orElseThrow(() -> new AuthenticationException("Sessão expirada"));
+
+        return properties.getLimitsForUserType(usuario.getUserType());
+    }
+
+    private void normalizarListas(Sessao sessao) {
+        if (sessao.getUsuariosConvidadosIds() == null) {
+            sessao.setUsuariosConvidadosIds(new java.util.ArrayList<>());
+        }
+        if (sessao.getUsuariosPendentes() == null) {
+            sessao.setUsuariosPendentes(new java.util.ArrayList<>());
         }
 
-        for (StatusSessao status : statusesAtivos) {
-            List<Sessao> sessoesComoConvidado = sessaoRepository.findByUsuarioConvidadoIdAndStatus(usuarioId, status);
-            if (!sessoesComoConvidado.isEmpty()) {
-                throw new IllegalStateException("Você já possui uma sessão ativa");
-            }
+        if (sessao.getUsuarioConvidadoId() != null &&
+            !sessao.getUsuariosConvidadosIds().contains(sessao.getUsuarioConvidadoId())) {
+            sessao.getUsuariosConvidadosIds().add(sessao.getUsuarioConvidadoId());
+        }
+
+        if (sessao.getUsuarioConvidadoPendenteId() != null &&
+            sessao.getUsuariosPendentes().stream()
+                .noneMatch(p -> sessao.getUsuarioConvidadoPendenteId().equals(p.getUsuarioId()))) {
+            sessao.getUsuariosPendentes().add(Sessao.PendenteEntrada.builder()
+                .usuarioId(sessao.getUsuarioConvidadoPendenteId())
+                .nomeUsuario(sessao.getNomeUsuarioConvidadoPendente())
+                .solicitadoEm(Instant.now())
+                .build());
+        }
+    }
+
+    private void sincronizarLegado(Sessao sessao) {
+        if (!sessao.getUsuariosConvidadosIds().isEmpty()) {
+            sessao.setUsuarioConvidadoId(sessao.getUsuariosConvidadosIds().get(0));
+        } else {
+            sessao.setUsuarioConvidadoId(null);
+        }
+
+        if (!sessao.getUsuariosPendentes().isEmpty()) {
+            Sessao.PendenteEntrada pendente = sessao.getUsuariosPendentes().get(0);
+            sessao.setUsuarioConvidadoPendenteId(pendente.getUsuarioId());
+            sessao.setNomeUsuarioConvidadoPendente(pendente.getNomeUsuario());
+        } else {
+            sessao.setUsuarioConvidadoPendenteId(null);
+            sessao.setNomeUsuarioConvidadoPendente(null);
+        }
+    }
+
+    private void atualizarStatusSessao(Sessao sessao) {
+        if (!sessao.getUsuariosConvidadosIds().isEmpty()) {
+            sessao.setStatus(StatusSessao.ATIVA);
+            return;
+        }
+
+        if (!sessao.getUsuariosPendentes().isEmpty()) {
+            sessao.setStatus(StatusSessao.AGUARDANDO_APROVACAO);
+            return;
+        }
+
+        sessao.setStatus(StatusSessao.AGUARDANDO);
+    }
+    
+    private void validarUsuarioSemSessaoAtiva(String usuarioId) {
+        br.com.khawantech.files.user.entity.User usuario = userRepository.findById(usuarioId)
+            .orElseThrow(() -> new AuthenticationException("Sessão expirada"));
+
+        if (usuario.getUserType() == br.com.khawantech.files.user.entity.UserType.PREMIUM) {
+            return;
+        }
+
+        List<StatusSessao> statusesAtivos = List.of(StatusSessao.AGUARDANDO, StatusSessao.AGUARDANDO_APROVACAO, StatusSessao.ATIVA);
+        List<Sessao> sessoes = sessaoRepository.findSessoesDoUsuario(usuarioId);
+
+        boolean possuiAtiva = sessoes.stream().anyMatch(sessao -> statusesAtivos.contains(sessao.getStatus()));
+        if (possuiAtiva) {
+            throw new IllegalStateException("Você já possui uma sessão ativa");
         }
     }
 
     private SessaoResponse toSessaoResponse(Sessao sessao, String qrCodeBase64, String usuarioId) {
+        normalizarListas(sessao);
+        sincronizarLegado(sessao);
         boolean estaAtiva = sessao.getStatus() == StatusSessao.ATIVA || 
                            sessao.getStatus() == StatusSessao.AGUARDANDO || 
                            sessao.getStatus() == StatusSessao.AGUARDANDO_APROVACAO;
@@ -484,6 +639,14 @@ public class SessaoService {
             .usuarioConvidadoId(sessao.getUsuarioConvidadoId())
             .usuarioConvidadoPendenteId(sessao.getUsuarioConvidadoPendenteId())
             .nomeUsuarioConvidadoPendente(sessao.getNomeUsuarioConvidadoPendente())
+            .usuariosConvidadosIds(List.copyOf(sessao.getUsuariosConvidadosIds()))
+            .usuariosPendentes(sessao.getUsuariosPendentes().stream()
+                .map(pendente -> br.com.khawantech.files.transferencia.dto.PendenteEntradaResponse.builder()
+                    .usuarioId(pendente.getUsuarioId())
+                    .nomeUsuario(pendente.getNomeUsuario())
+                    .solicitadoEm(pendente.getSolicitadoEm())
+                    .build())
+                .toList())
             .totalArquivosTransferidos(sessao.getTotalArquivosTransferidos())
             .criadaEm(sessao.getCriadaEm())
             .expiraEm(sessao.getExpiraEm())

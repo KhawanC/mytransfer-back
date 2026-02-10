@@ -104,7 +104,7 @@ public class SessaoCleanupService {
         }
     }
 
-    private void removerSessaoCompleta(Sessao sessao) {
+    public void removerSessaoCompleta(Sessao sessao) {
         log.info("Removendo sessão completa: {}", sessao.getId());
 
         List<Arquivo> arquivos = arquivoRepository.findBySessaoId(sessao.getId());
@@ -175,11 +175,7 @@ public class SessaoCleanupService {
 
             for (br.com.khawantech.files.user.entity.User usuario : usuariosExpirados) {
                 try {
-                    List<Sessao> sessoesDoGuest = sessaoRepository
-                        .findByUsuarioCriadorIdOrUsuarioConvidadoId(
-                            usuario.getId(), 
-                            usuario.getId()
-                        );
+                    List<Sessao> sessoesDoGuest = sessaoRepository.findSessoesDoUsuario(usuario.getId());
 
                     for (Sessao sessao : sessoesDoGuest) {
                         try {
