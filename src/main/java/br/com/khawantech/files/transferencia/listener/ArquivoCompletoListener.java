@@ -32,7 +32,7 @@ public class ArquivoCompletoListener {
         log.info("Arquivo completo recebido: {} - {}", event.getArquivoId(), event.getNomeOriginal());
 
         try {
-            detectarImagemConversivel(event);
+            boolean conversivel = detectarImagemConversivel(event);
 
             String token = downloadTokenService.gerarToken(event.getArquivoId(), event.getRemetenteId());
             String urlDownload = baseUrl + "/api/files/d/" + token;
@@ -41,7 +41,8 @@ public class ArquivoCompletoListener {
                 event.getSessaoId(),
                 event.getArquivoId(),
                 event.getNomeOriginal(),
-                urlDownload
+                urlDownload,
+                conversivel
             );
 
             log.info("Notificação de arquivo disponível enviada: {}", event.getArquivoId());
@@ -56,7 +57,7 @@ public class ArquivoCompletoListener {
         }
     }
 
-    private void detectarImagemConversivel(ArquivoCompletoEvent event) {
+    private boolean detectarImagemConversivel(ArquivoCompletoEvent event) {
         try {
             if (imageConversionService.isImagemConversivel(event.getTipoMime())) {
                 arquivoRepository.findById(event.getArquivoId()).ifPresent(arquivo -> {
@@ -64,10 +65,13 @@ public class ArquivoCompletoListener {
                     arquivoRepository.save(arquivo);
                     log.info("Arquivo {} marcado como conversível", event.getArquivoId());
                 });
+                return true;
             }
+            return false;
         } catch (Exception e) {
             log.warn("Erro ao detectar imagem conversível para arquivo {}: {}", 
                 event.getArquivoId(), e.getMessage());
+            return false;
         }
     }
 }

@@ -164,12 +164,12 @@ public class WebSocketNotificationService {
         notificarSessao(sessaoId, notificacao);
     }
 
-    public void notificarArquivoDisponivel(String sessaoId, String arquivoId, String nomeArquivo, String urlDownload) {
+    public void notificarArquivoDisponivel(String sessaoId, String arquivoId, String nomeArquivo, String urlDownload, boolean conversivel) {
         NotificacaoResponse notificacao = NotificacaoResponse.builder()
             .tipo(NotificacaoResponse.TipoNotificacao.ARQUIVO_DISPONIVEL)
             .sessaoId(sessaoId)
             .mensagem("Arquivo disponível para download: " + nomeArquivo)
-            .dados(new ArquivoDisponivel(arquivoId, nomeArquivo, urlDownload))
+            .dados(new ArquivoDisponivel(arquivoId, nomeArquivo, urlDownload, conversivel))
             .timestamp(Instant.now())
             .build();
 
@@ -207,7 +207,7 @@ public class WebSocketNotificationService {
         log.info("Notificação de conversão enviada para sessão {}: arquivo {}", sessaoId, arquivoConvertido.getId());
     }
 
-    public record ArquivoDisponivel(String arquivoId, String nomeArquivo, String urlDownload) {}
+    public record ArquivoDisponivel(String arquivoId, String nomeArquivo, String urlDownload, boolean conversivel) {}
     
     public record ArquivoConvertido(String arquivoId, String arquivoOriginalId, String nomeArquivo, 
                                     String formato, Long tamanhoBytes) {}

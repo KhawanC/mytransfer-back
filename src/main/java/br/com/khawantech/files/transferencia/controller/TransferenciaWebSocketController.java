@@ -169,7 +169,8 @@ public class TransferenciaWebSocketController {
                     request.getSessaoId(),
                     response.getArquivoId(),
                     response.getNomeArquivo(),
-                    response.getUrlDownload()
+                    response.getUrlDownload(),
+                    false
                 );
             }
         }
