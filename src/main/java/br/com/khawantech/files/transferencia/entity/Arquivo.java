@@ -99,6 +99,7 @@ public class Arquivo implements Serializable {
         return this.arquivoOriginalId != null;
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public List<FormatoImagem> getFormatosDisponiveis() {
         if (!Boolean.TRUE.equals(this.conversivel)) {
             return List.of();

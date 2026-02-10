@@ -5,6 +5,7 @@ import br.com.khawantech.files.transferencia.entity.Sessao;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -34,14 +35,28 @@ public class SessaoRedisService {
 
     public Optional<Sessao> buscarPorId(String sessaoId) {
         String key = SESSAO_PREFIX + sessaoId;
-        Sessao sessao = sessaoRedisTemplate.opsForValue().get(key);
-        return Optional.ofNullable(sessao);
+        try {
+            Sessao sessao = sessaoRedisTemplate.opsForValue().get(key);
+            return Optional.ofNullable(sessao);
+        } catch (SerializationException e) {
+            log.warn("Erro ao desserializar sessao do Redis (id={}), removendo entrada corrompida: {}", 
+                    sessaoId, e.getMessage());
+            sessaoRedisTemplate.delete(key);
+            return Optional.empty();
+        }
     }
 
     public Optional<Sessao> buscarPorHash(String hashConexao) {
         String key = SESSAO_HASH_PREFIX + hashConexao;
-        Sessao sessao = sessaoRedisTemplate.opsForValue().get(key);
-        return Optional.ofNullable(sessao);
+        try {
+            Sessao sessao = sessaoRedisTemplate.opsForValue().get(key);
+            return Optional.ofNullable(sessao);
+        } catch (SerializationException e) {
+            log.warn("Erro ao desserializar sessao do Redis (hash={}), removendo entrada corrompida: {}", 
+                    hashConexao, e.getMessage());
+            sessaoRedisTemplate.delete(key);
+            return Optional.empty();
+        }
     }
 
     public void atualizarSessao(Sessao sessao) {

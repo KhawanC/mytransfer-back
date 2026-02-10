@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.stereotype.Service;
 
 import br.com.khawantech.files.transferencia.entity.Arquivo;
@@ -35,14 +36,28 @@ public class ArquivoRedisService {
 
     public Optional<Arquivo> buscarPorId(String arquivoId) {
         String key = ARQUIVO_PREFIX + arquivoId;
-        Arquivo arquivo = arquivoRedisTemplate.opsForValue().get(key);
-        return Optional.ofNullable(arquivo);
+        try {
+            Arquivo arquivo = arquivoRedisTemplate.opsForValue().get(key);
+            return Optional.ofNullable(arquivo);
+        } catch (SerializationException e) {
+            log.warn("Erro ao desserializar arquivo do Redis (id={}), removendo entrada corrompida: {}", 
+                    arquivoId, e.getMessage());
+            arquivoRedisTemplate.delete(key);
+            return Optional.empty();
+        }
     }
 
     public Optional<Arquivo> buscarPorHash(String hashConteudo) {
         String key = ARQUIVO_HASH_PREFIX + hashConteudo;
-        Arquivo arquivo = arquivoRedisTemplate.opsForValue().get(key);
-        return Optional.ofNullable(arquivo);
+        try {
+            Arquivo arquivo = arquivoRedisTemplate.opsForValue().get(key);
+            return Optional.ofNullable(arquivo);
+        } catch (SerializationException e) {
+            log.warn("Erro ao desserializar arquivo do Redis (hash={}), removendo entrada corrompida: {}", 
+                    hashConteudo, e.getMessage());
+            arquivoRedisTemplate.delete(key);
+            return Optional.empty();
+        }
     }
 
     public void atualizarArquivo(Arquivo arquivo) {
