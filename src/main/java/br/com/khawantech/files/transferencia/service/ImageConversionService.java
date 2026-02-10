@@ -27,8 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.Locale;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,6 +39,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ImageConversionService {
+
+    private static final Duration IDENTIFY_TIMEOUT = Duration.ofSeconds(10);
 
     private final ArquivoRepository arquivoRepository;
     private final MinioService minioService;
@@ -199,6 +204,18 @@ public class ImageConversionService {
 
             Files.write(tempInputPath, imagemOriginal);
 
+            String formatoDetectado = detectarFormatoMagick(tempInputPath);
+            if (formatoDetectado == null || formatoDetectado.isBlank()) {
+                throw new ConversaoNaoSuportadaException("Arquivo de imagem inválido ou não decodificável pelo ImageMagick");
+            }
+
+            String detectadoUpper = formatoDetectado.trim().toUpperCase(Locale.ROOT);
+            if (!detectadoUpper.equals(magickFormatoOriginal.toUpperCase(Locale.ROOT))) {
+                throw new ConversaoNaoSuportadaException(
+                    "Conteúdo do arquivo não corresponde ao tipo informado (esperado " + magickFormatoOriginal + ", detectado " + detectadoUpper + ")"
+                );
+            }
+
             ConvertCmd cmd = new ConvertCmd();
             cmd.setSearchPath("/usr/bin");
             
@@ -219,6 +236,34 @@ public class ImageConversionService {
             throw new RuntimeException("Falha na conversão ImageMagick: " + e.getMessage(), e);
         } finally {
             limparArquivosTemporarios(tempInputPath, tempOutputPath);
+        }
+    }
+
+    private String detectarFormatoMagick(Path inputPath) {
+        try {
+            String magick = Files.isExecutable(Path.of("/usr/bin/magick")) ? "/usr/bin/magick" : "magick";
+            ProcessBuilder processBuilder = new ProcessBuilder(
+                magick,
+                "identify",
+                "-format",
+                "%m",
+                inputPath.toString()
+            );
+            processBuilder.redirectErrorStream(true);
+
+            Process process = processBuilder.start();
+            byte[] bytes = process.getInputStream().readAllBytes();
+            boolean finished = process.waitFor(IDENTIFY_TIMEOUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return null;
+            }
+            if (process.exitValue() != 0) {
+                return null;
+            }
+            return new String(bytes, StandardCharsets.UTF_8).trim();
+        } catch (Exception e) {
+            return null;
         }
     }
 
