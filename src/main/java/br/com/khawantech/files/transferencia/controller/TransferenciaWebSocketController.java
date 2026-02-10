@@ -9,6 +9,10 @@ import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
 import br.com.khawantech.files.transferencia.dto.AprovarEntradaRequest;
+import br.com.khawantech.files.transferencia.dto.ChatDigitandoRequest;
+import br.com.khawantech.files.transferencia.dto.ChatDigitandoResponse;
+import br.com.khawantech.files.transferencia.dto.ChatMensagemRequest;
+import br.com.khawantech.files.transferencia.dto.ChatMensagemResponse;
 import br.com.khawantech.files.transferencia.dto.EncerrarSessaoRequest;
 import br.com.khawantech.files.transferencia.dto.EntrarSessaoRequest;
 import br.com.khawantech.files.transferencia.dto.EnviarChunkRequest;
@@ -20,6 +24,7 @@ import br.com.khawantech.files.transferencia.dto.SairSessaoRequest;
 import br.com.khawantech.files.transferencia.dto.SessaoResponse;
 import br.com.khawantech.files.transferencia.entity.Sessao;
 import br.com.khawantech.files.transferencia.service.ArquivoService;
+import br.com.khawantech.files.transferencia.service.ChatService;
 import br.com.khawantech.files.transferencia.service.SessaoService;
 import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
 import br.com.khawantech.files.transferencia.util.FileNameSanitizer;
@@ -34,6 +39,7 @@ public class TransferenciaWebSocketController {
 
     private final SessaoService sessaoService;
     private final ArquivoService arquivoService;
+    private final ChatService chatService;
     private final WebSocketNotificationService notificationService;
 
     @MessageMapping("/sessao/criar")
@@ -178,15 +184,43 @@ public class TransferenciaWebSocketController {
         return response;
     }
 
-    private String getUsuarioId(SimpMessageHeaderAccessor headerAccessor) {
-        Object userObj = headerAccessor.getSessionAttributes().get("user");
-        if (userObj instanceof User user) {
-            return user.getId();
-        }
+    @MessageMapping("/chat/enviar")
+    public void enviarMensagemChat(@Payload ChatMensagemRequest request,
+                                   SimpMessageHeaderAccessor headerAccessor) {
+        String usuarioId = getUsuarioId(headerAccessor);
 
-        Object userIdObj = headerAccessor.getSessionAttributes().get("userId");
-        if (userIdObj != null) {
-            return userIdObj.toString();
+        ChatMensagemResponse response = chatService.enviarMensagem(request, usuarioId);
+        notificationService.notificarChatMensagem(request.getSessaoId(), response);
+    }
+
+    @MessageMapping("/chat/digitando")
+    public void enviarDigitando(@Payload ChatDigitandoRequest request,
+                                SimpMessageHeaderAccessor headerAccessor) {
+        String usuarioId = getUsuarioId(headerAccessor);
+        String usuarioNome = getUsuarioNome(headerAccessor);
+
+        ChatDigitandoResponse response = chatService.registrarDigitando(
+            request.getSessaoId(),
+            usuarioId,
+            usuarioNome,
+            request.isDigitando()
+        );
+
+        notificationService.notificarChatDigitando(request.getSessaoId(), response);
+    }
+
+    private String getUsuarioId(SimpMessageHeaderAccessor headerAccessor) {
+        var sessionAttributes = headerAccessor.getSessionAttributes();
+        if (sessionAttributes != null) {
+            Object userObj = sessionAttributes.get("user");
+            if (userObj instanceof User user) {
+                return user.getId();
+            }
+
+            Object userIdObj = sessionAttributes.get("userId");
+            if (userIdObj != null) {
+                return userIdObj.toString();
+            }
         }
 
         Principal principal = headerAccessor.getUser();
@@ -195,5 +229,17 @@ public class TransferenciaWebSocketController {
         }
 
         throw new RuntimeException("Usuário não autenticado");
+    }
+
+    private String getUsuarioNome(SimpMessageHeaderAccessor headerAccessor) {
+        var sessionAttributes = headerAccessor.getSessionAttributes();
+        if (sessionAttributes != null) {
+            Object userObj = sessionAttributes.get("user");
+            if (userObj instanceof User user) {
+                return user.getName();
+            }
+        }
+
+        return "Usuário";
     }
 }

@@ -5,6 +5,8 @@ import java.time.Instant;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import br.com.khawantech.files.transferencia.dto.ChatDigitandoResponse;
+import br.com.khawantech.files.transferencia.dto.ChatMensagemResponse;
 import br.com.khawantech.files.transferencia.dto.NotificacaoResponse;
 import br.com.khawantech.files.transferencia.dto.ProgressoUploadResponse;
 import br.com.khawantech.files.transferencia.entity.Arquivo;
@@ -33,6 +35,16 @@ public class WebSocketNotificationService {
     public void notificarProgresso(String sessaoId, ProgressoUploadResponse progresso) {
         String destination = "/topic/sessao/" + sessaoId + "/progresso";
         messagingTemplate.convertAndSend(destination, progresso);
+    }
+
+    public void notificarChatMensagem(String sessaoId, ChatMensagemResponse mensagem) {
+        String destination = "/topic/sessao/" + sessaoId + "/chat";
+        messagingTemplate.convertAndSend(destination, mensagem);
+    }
+
+    public void notificarChatDigitando(String sessaoId, ChatDigitandoResponse digitando) {
+        String destination = "/topic/sessao/" + sessaoId + "/chat/digitando";
+        messagingTemplate.convertAndSend(destination, digitando);
     }
 
     public void notificarUsuarioEntrou(String sessaoId, String usuarioConvidadoId) {

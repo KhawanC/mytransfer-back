@@ -1,0 +1,21 @@
+package br.com.khawantech.files.transferencia.dto;
+
+import java.time.Instant;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ChatDigitandoResponse {
+
+    private String sessaoId;
+    private String usuarioId;
+    private String usuarioNome;
+    private boolean digitando;
+    private Instant timestamp;
+}

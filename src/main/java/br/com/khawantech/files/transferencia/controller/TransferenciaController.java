@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.khawantech.files.transferencia.dto.AprovarEntradaRequest;
 import br.com.khawantech.files.transferencia.dto.ArquivoResponse;
+import br.com.khawantech.files.transferencia.dto.ChatHistoricoResponse;
 import br.com.khawantech.files.transferencia.dto.EntrarSessaoRequest;
 import br.com.khawantech.files.transferencia.dto.EnviarChunkRequest;
 import br.com.khawantech.files.transferencia.dto.IniciarUploadRequest;
@@ -29,6 +30,7 @@ import br.com.khawantech.files.transferencia.dto.SessaoResponse;
 import br.com.khawantech.files.transferencia.dto.UploadPendenteResponse;
 import br.com.khawantech.files.transferencia.entity.Sessao;
 import br.com.khawantech.files.transferencia.service.ArquivoService;
+import br.com.khawantech.files.transferencia.service.ChatService;
 import br.com.khawantech.files.transferencia.service.SessaoService;
 import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
 import br.com.khawantech.files.user.entity.User;
@@ -44,6 +46,7 @@ public class TransferenciaController {
 
     private final SessaoService sessaoService;
     private final ArquivoService arquivoService;
+    private final ChatService chatService;
     private final WebSocketNotificationService notificationService;
 
     @GetMapping("/sessoes")
@@ -223,6 +226,22 @@ public class TransferenciaController {
             @AuthenticationPrincipal User user) {
         log.info("REST: Excluindo arquivo {} pelo usuário {}", arquivoId, user.getId());
         arquivoService.excluirArquivo(arquivoId, user.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/sessao/{sessaoId}/chat/historico")
+    public ResponseEntity<ChatHistoricoResponse> obterHistoricoChat(
+            @PathVariable String sessaoId,
+            @AuthenticationPrincipal User user) {
+        ChatHistoricoResponse response = chatService.obterHistorico(sessaoId, user.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/sessao/{sessaoId}/chat/leitura")
+    public ResponseEntity<Void> registrarLeituraChat(
+            @PathVariable String sessaoId,
+            @AuthenticationPrincipal User user) {
+        chatService.registrarLeitura(sessaoId, user.getId());
         return ResponseEntity.noContent().build();
     }
 

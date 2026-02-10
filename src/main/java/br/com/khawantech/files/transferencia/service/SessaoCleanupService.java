@@ -13,6 +13,8 @@ import br.com.khawantech.files.transferencia.entity.Arquivo;
 import br.com.khawantech.files.transferencia.entity.Sessao;
 import br.com.khawantech.files.transferencia.entity.StatusSessao;
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
+import br.com.khawantech.files.transferencia.repository.ChatLeituraRepository;
+import br.com.khawantech.files.transferencia.repository.ChatMensagemRepository;
 import br.com.khawantech.files.transferencia.repository.ChunkArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.SessaoRepository;
 import br.com.khawantech.files.user.entity.UserType;
@@ -31,6 +33,8 @@ public class SessaoCleanupService {
     private final SessaoRedisService sessaoRedisService;
     private final ArquivoRedisService arquivoRedisService;
     private final ProgressoUploadRedisService progressoRedisService;
+    private final ChatMensagemRepository chatMensagemRepository;
+    private final ChatLeituraRepository chatLeituraRepository;
     private final MinioService minioService;
     private final WebSocketNotificationService notificationService;
     private final TransferenciaProperties properties;
@@ -111,6 +115,9 @@ public class SessaoCleanupService {
         }
 
         arquivoRepository.deleteBySessaoId(sessao.getId());
+
+        chatMensagemRepository.deleteBySessaoId(sessao.getId());
+        chatLeituraRepository.deleteBySessaoId(sessao.getId());
 
         minioService.deletarArquivosSessao(sessao.getId());
 

@@ -184,6 +184,18 @@ public class TransferenciaExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
+    @ExceptionHandler({ IllegalArgumentException.class, IllegalStateException.class })
+    public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException ex) {
+        log.warn("Requisição inválida: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error("Bad Request")
+            .message(ex.getMessage())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @Data
     @Builder
     public static class ErrorResponse {
