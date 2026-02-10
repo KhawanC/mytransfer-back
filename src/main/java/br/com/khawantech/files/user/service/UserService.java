@@ -20,13 +20,13 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    @Cacheable(value = "user-by-id", key = "#id", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "user-by-id", key = "#id", unless = "#result == null")
     public Optional<User> findById(String id) {
         log.debug("Fetching user by id: {} from database", id);
         return userRepository.findById(id);
     }
 
-    @Cacheable(value = "user-by-email", key = "#email", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "user-by-email", key = "#email", unless = "#result == null")
     public Optional<User> findByEmail(String email) {
         log.debug("Fetching user by email: {} from database", email);
         return userRepository.findByEmail(email);
