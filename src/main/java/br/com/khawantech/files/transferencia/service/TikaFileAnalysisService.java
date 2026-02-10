@@ -35,20 +35,25 @@ public class TikaFileAnalysisService {
         try {
             mimeDetectado = tika.detect(prefixoBytes);
         } catch (Exception e) {
-            log.warn("Falha ao detectar mime via Tika: {}", e.getMessage());
+            log.warn("Falha ao detectar mime via Tika: prefixoBytes={} erro={} mensagem={}", prefixoBytes.length, e.getClass().getSimpleName(), e.getMessage());
             mimeDetectado = "application/octet-stream";
+        }
+
+        String normalized = normalizeMime(mimeDetectado);
+        if (log.isDebugEnabled()) {
+            log.debug("Tika detectou mime: prefixoBytes={} mime={} normalized={}", prefixoBytes.length, mimeDetectado, normalized);
         }
 
         Metadata metadata = new Metadata();
         try {
             parser.parse(new ByteArrayInputStream(prefixoBytes), new DefaultHandler(), metadata, new ParseContext());
         } catch (Exception e) {
-            log.debug("Falha ao extrair metadata via Tika (prefixo): {}", e.getMessage());
+            log.debug("Falha ao extrair metadata via Tika (prefixo): prefixoBytes={} erro={} mensagem={}", prefixoBytes.length, e.getClass().getSimpleName(), e.getMessage());
         }
 
         Map<String, String> metadados = toMap(metadata);
 
-        return new AnaliseTikaResponse(normalizeMime(mimeDetectado), metadados);
+        return new AnaliseTikaResponse(normalized, metadados);
     }
 
     private static Map<String, String> toMap(Metadata metadata) {

@@ -66,11 +66,32 @@ public class ArquivoSecurityListener {
             byte[] prefixo = minioService.lerPrefixoDeChunks(arquivo.getSessaoId(), arquivo.getId(), arquivo.getTotalChunks(), MAX_PREFIX_BYTES);
             TikaFileAnalysisService.AnaliseTikaResponse analise = tikaFileAnalysisService.analisar(prefixo);
 
+            log.info(
+                "Tika analisou prefixo: arquivo={} sessao={} nome={} tamanhoBytes={} prefixoBytes={} mimeInformado={} mimeDetectado={} metadadosCount={}",
+                arquivo.getId(),
+                arquivo.getSessaoId(),
+                arquivo.getNomeOriginal(),
+                arquivo.getTamanhoBytes(),
+                prefixo != null ? prefixo.length : 0,
+                arquivo.getTipoMimeInformado(),
+                analise.tipoMimeDetectado(),
+                analise.metadados() != null ? analise.metadados().size() : 0
+            );
+
             arquivo.setTipoMimeDetectado(analise.tipoMimeDetectado());
             arquivo.setMetadadosTika(analise.metadados());
 
             ArquivoSecurityPolicyService.Decision decision = securityPolicyService.avaliar(arquivo.getTipoMimeInformado(), analise.tipoMimeDetectado(), analise.metadados());
             if (!decision.permitido()) {
+                log.warn(
+                    "Arquivo reprovado na policy: arquivo={} sessao={} nome={} mimeInformado={} mimeDetectado={} motivo={}",
+                    arquivo.getId(),
+                    arquivo.getSessaoId(),
+                    arquivo.getNomeOriginal(),
+                    arquivo.getTipoMimeInformado(),
+                    analise.tipoMimeDetectado(),
+                    decision.motivo()
+                );
                 bloquearArquivo(arquivo, decision.motivo());
                 return;
             }

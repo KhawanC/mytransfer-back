@@ -2,10 +2,14 @@ package br.com.khawantech.files.transferencia.service;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class ArquivoSecurityPolicyService {
 
@@ -38,18 +42,53 @@ public class ArquivoSecurityPolicyService {
         String detectado = normalize(tipoMimeDetectado);
 
         if (MIME_DENYLIST.contains(detectado)) {
-            return Decision.bloquear("Arquivo bloqueado: tipo não permitido (" + detectado + ")");
+            String motivo = "Arquivo bloqueado: tipo não permitido (" + detectado + ")";
+            log.warn("Policy bloqueou por denylist: informado={} detectado={} metadados={}", informado, detectado, pickMetadados(metadados));
+            return Decision.bloquear(motivo);
         }
 
         if (MIME_MACRO_ENABLED.contains(detectado)) {
-            return Decision.bloquear("Arquivo bloqueado: possível macro habilitada (" + detectado + ")");
+            String motivo = "Arquivo bloqueado: possível macro habilitada (" + detectado + ")";
+            log.warn("Policy bloqueou por macro-enabled: informado={} detectado={} metadados={}", informado, detectado, pickMetadados(metadados));
+            return Decision.bloquear(motivo);
         }
 
         if (!OCTET_STREAM.equals(informado) && !informado.equals(detectado)) {
-            return Decision.bloquear("Arquivo bloqueado: tipo informado divergente do detectado");
+            String motivo = "Arquivo bloqueado: tipo informado divergente do detectado";
+            log.warn("Policy bloqueou por divergência MIME: informado={} detectado={} metadados={}", informado, detectado, pickMetadados(metadados));
+            return Decision.bloquear(motivo);
         }
 
         return Decision.permitir();
+    }
+
+    private static Map<String, String> pickMetadados(Map<String, String> metadados) {
+        if (metadados == null || metadados.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, String> picked = new LinkedHashMap<>();
+
+        putIfPresent(picked, metadados, "Content-Type");
+        putIfPresent(picked, metadados, "resourceName");
+        putIfPresent(picked, metadados, "Content-Encoding");
+        putIfPresent(picked, metadados, "X-Parsed-By");
+        putIfPresent(picked, metadados, "X-TIKA:Parsed-By");
+        putIfPresent(picked, metadados, "tika:content_handler");
+        putIfPresent(picked, metadados, "Content-Length");
+
+        if (picked.isEmpty()) {
+            picked.put("_keys", String.join(",", metadados.keySet().stream().limit(16).toList()));
+        }
+
+        return picked;
+    }
+
+    private static void putIfPresent(Map<String, String> out, Map<String, String> in, String key) {
+        String value = in.get(key);
+        if (value != null && !value.isBlank()) {
+            out.put(key, value);
+        }
     }
 
     private static String normalize(String mime) {
