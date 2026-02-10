@@ -188,6 +188,18 @@ public class WebSocketNotificationService {
         notificarSessao(sessaoId, notificacao);
     }
 
+    public void notificarArquivoBloqueado(String sessaoId, String arquivoId, String motivo) {
+        NotificacaoResponse notificacao = NotificacaoResponse.builder()
+            .tipo(NotificacaoResponse.TipoNotificacao.ARQUIVO_BLOQUEADO)
+            .sessaoId(sessaoId)
+            .mensagem(motivo)
+            .dados(new ArquivoBloqueado(arquivoId, motivo))
+            .timestamp(Instant.now())
+            .build();
+
+        notificarSessao(sessaoId, notificacao);
+    }
+
     public void notificarConversaoConcluida(String sessaoId, Arquivo arquivoConvertido) {
         NotificacaoResponse notificacao = NotificacaoResponse.builder()
             .tipo(NotificacaoResponse.TipoNotificacao.ARQUIVO_CONVERTIDO)
@@ -208,6 +220,8 @@ public class WebSocketNotificationService {
     }
 
     public record ArquivoDisponivel(String arquivoId, String nomeArquivo, String urlDownload, boolean conversivel) {}
+
+    public record ArquivoBloqueado(String arquivoId, String motivo) {}
     
     public record ArquivoConvertido(String arquivoId, String arquivoOriginalId, String nomeArquivo, 
                                     String formato, Long tamanhoBytes) {}

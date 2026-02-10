@@ -34,6 +34,7 @@ public class NotificacaoResponse {
         UPLOAD_COMPLETO,
         UPLOAD_ERRO,
         ARQUIVO_DISPONIVEL,
+        ARQUIVO_BLOQUEADO,
         ARQUIVO_CONVERTIDO
     }
 }

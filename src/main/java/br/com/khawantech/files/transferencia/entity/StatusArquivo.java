@@ -5,5 +5,6 @@ public enum StatusArquivo {
     ENVIANDO,
     PROCESSANDO,
     COMPLETO,
+    BLOQUEADO,
     ERRO
 }

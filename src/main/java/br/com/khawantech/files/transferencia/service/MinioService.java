@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 
@@ -144,6 +145,44 @@ public class MinioService {
         } catch (Exception e) {
             log.error("Erro ao obter arquivo do MinIO: {}", caminhoMinio, e);
             throw new RuntimeException("Erro ao obter arquivo do MinIO", e);
+        }
+    }
+
+    public byte[] lerPrefixoDeChunks(String sessaoId, String arquivoId, int totalChunks, int maxBytes) {
+        if (maxBytes <= 0) {
+            return new byte[0];
+        }
+
+        try {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(Math.min(maxBytes, 64 * 1024));
+            int remaining = maxBytes;
+
+            for (int i = 0; i < totalChunks && remaining > 0; i++) {
+                String caminhoChunk = gerarCaminhoChunk(sessaoId, arquivoId, i);
+
+                try (InputStream inputStream = minioClient.getObject(
+                    GetObjectArgs.builder()
+                        .bucket(properties.getMinioBucket())
+                        .object(caminhoChunk)
+                        .build()
+                )) {
+                    byte[] buffer = new byte[Math.min(8192, remaining)];
+                    int read;
+                    while (remaining > 0 && (read = inputStream.read(buffer, 0, Math.min(buffer.length, remaining))) != -1) {
+                        outputStream.write(buffer, 0, read);
+                        remaining -= read;
+                    }
+                }
+            }
+
+            byte[] bytes = outputStream.toByteArray();
+            if (bytes.length > maxBytes) {
+                return Arrays.copyOf(bytes, maxBytes);
+            }
+            return bytes;
+        } catch (Exception e) {
+            log.error("Erro ao ler prefixo de chunks: {}", e.getMessage());
+            throw new RuntimeException("Erro ao ler prefixo de chunks", e);
         }
     }
 

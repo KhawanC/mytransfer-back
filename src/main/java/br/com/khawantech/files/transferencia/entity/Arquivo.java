@@ -3,6 +3,7 @@ package br.com.khawantech.files.transferencia.entity;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import br.com.khawantech.files.transferencia.dto.FormatoImagem;
@@ -47,6 +48,12 @@ public class Arquivo implements Serializable {
     private long tamanhoBytes;
 
     private String tipoMime;
+
+    private String tipoMimeInformado;
+
+    private String tipoMimeDetectado;
+
+    private Map<String, String> metadadosTika;
 
     private String caminhoMinio;
 

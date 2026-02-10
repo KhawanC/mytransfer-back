@@ -33,6 +33,7 @@
 		<zxing.version>3.5.3</zxing.version>
 		<minio.version>8.5.13</minio.version>
 		<im4java.version>1.4.0</im4java.version>
+		<tika.version>2.9.2</tika.version>
 	</properties>
 	<dependencies>
 		<!-- Spring Boot Starters -->
@@ -149,6 +150,18 @@
 			<groupId>org.im4java</groupId>
 			<artifactId>im4java</artifactId>
 			<version>${im4java.version}</version>
+		</dependency>
+
+		<!-- Apache Tika (mime detection + metadata) -->
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-core</artifactId>
+			<version>${tika.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-parsers-standard-package</artifactId>
+			<version>${tika.version}</version>
 		</dependency>
 
 		<!-- Lombok -->

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.khawantech.files.transferencia.entity.Arquivo;
 import br.com.khawantech.files.transferencia.entity.Sessao;
+import br.com.khawantech.files.transferencia.entity.StatusArquivo;
 import br.com.khawantech.files.transferencia.service.ArquivoService;
 import br.com.khawantech.files.transferencia.service.DownloadTokenService;
 import br.com.khawantech.files.transferencia.service.MinioService;
@@ -47,6 +48,10 @@ public class FileProxyController {
             Sessao sessao = sessaoService.buscarPorId(arquivo.getSessaoId());
             sessaoService.validarUsuarioPertenceASessao(sessao, user.getId());
 
+            if (!StatusArquivo.COMPLETO.equals(arquivo.getStatus())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
+
             String token = downloadTokenService.gerarToken(arquivoId, user.getId());
             
             return ResponseEntity.ok(new TokenResponse(token));
@@ -74,6 +79,10 @@ public class FileProxyController {
             Arquivo arquivo = arquivoService.buscarArquivoPorId(arquivoId);
             Sessao sessao = sessaoService.buscarPorId(arquivo.getSessaoId());
             sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
+
+            if (!StatusArquivo.COMPLETO.equals(arquivo.getStatus()) || arquivo.getCaminhoMinio() == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
 
             MinioService.ArquivoData arquivoData = minioService.obterArquivo(arquivo.getCaminhoMinio());
 
@@ -126,6 +135,10 @@ public class FileProxyController {
             Arquivo arquivo = arquivoService.buscarArquivoPorId(arquivoId);
             Sessao sessao = sessaoService.buscarPorId(arquivo.getSessaoId());
             sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
+
+            if (!StatusArquivo.COMPLETO.equals(arquivo.getStatus()) || arquivo.getCaminhoMinio() == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
 
             MinioService.ArquivoData arquivoData = minioService.obterArquivo(arquivo.getCaminhoMinio());
 

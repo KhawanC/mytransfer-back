@@ -13,8 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.khawantech.files.transferencia.config.RabbitConfig;
 import br.com.khawantech.files.transferencia.config.TransferenciaProperties;
-import br.com.khawantech.files.transferencia.dto.ArquivoCompletoEvent;
 import br.com.khawantech.files.transferencia.dto.ArquivoResponse;
+import br.com.khawantech.files.transferencia.dto.ArquivoSecurityEvent;
 import br.com.khawantech.files.transferencia.dto.ChunkRecebidoEvent;
 import br.com.khawantech.files.transferencia.dto.EnviarChunkRequest;
 import br.com.khawantech.files.transferencia.dto.IniciarUploadRequest;
@@ -112,7 +112,8 @@ public class ArquivoService {
             .nomeOriginal(request.getNomeArquivo())
             .hashConteudo(request.getHashConteudo())
             .tamanhoBytes(request.getTamanhoBytes())
-            .tipoMime(request.getTipoMime())
+            .tipoMime("application/octet-stream")
+            .tipoMimeInformado(request.getTipoMime())
             .status(StatusArquivo.PENDENTE)
             .remetenteId(usuarioId)
             .totalChunks(totalChunks)
@@ -158,6 +159,10 @@ public class ArquivoService {
 
         if (arquivo.getStatus() == StatusArquivo.COMPLETO) {
             return criarProgressoResponse(arquivo, true);
+        }
+
+        if (arquivo.getStatus() == StatusArquivo.BLOQUEADO) {
+            throw new RuntimeException("Arquivo bloqueado. Mensagem: " + arquivo.getMensagemErro());
         }
 
         if (arquivo.getStatus() == StatusArquivo.ERRO) {
@@ -268,16 +273,7 @@ public class ArquivoService {
         }
 
         try {
-            String caminhoFinal = minioService.mergeChunks(
-                sessao.getId(),
-                arquivo.getId(),
-                arquivo.getNomeOriginal(),
-                arquivo.getTotalChunks(),
-                arquivo.getTipoMime()
-            );
-
-            arquivo.setCaminhoMinio(caminhoFinal);
-            arquivo.setStatus(StatusArquivo.COMPLETO);
+            arquivo.setStatus(StatusArquivo.PROCESSANDO);
             arquivo.setProgressoUpload(100.0);
             arquivo.setChunksRecebidos(arquivo.getTotalChunks());
             arquivo.setAtualizadoEm(Instant.now());
@@ -285,27 +281,24 @@ public class ArquivoService {
             arquivoRepository.save(arquivo);
             arquivoRedisService.atualizarArquivo(arquivo);
 
-            sessaoService.incrementarArquivosTransferidos(sessao.getId());
-
             progressoRedisService.limparProgresso(arquivo.getId());
 
-            ArquivoCompletoEvent event = ArquivoCompletoEvent.builder()
+            ArquivoSecurityEvent event = ArquivoSecurityEvent.builder()
                 .arquivoId(arquivo.getId())
                 .sessaoId(sessao.getId())
-                .nomeOriginal(arquivo.getNomeOriginal())
-                .tamanhoBytes(arquivo.getTamanhoBytes())
-                .tipoMime(arquivo.getTipoMime())
-                .caminhoMinio(caminhoFinal)
                 .remetenteId(arquivo.getRemetenteId())
+                .nomeOriginal(arquivo.getNomeOriginal())
+                .tipoMimeInformado(arquivo.getTipoMimeInformado())
+                .totalChunks(arquivo.getTotalChunks())
                 .build();
 
             rabbitTemplate.convertAndSend(
                 RabbitConfig.EXCHANGE_TRANSFERENCIA,
-                RabbitConfig.ROUTING_KEY_ARQUIVO,
+                RabbitConfig.ROUTING_KEY_ARQUIVO_SECURITY,
                 event
             );
 
-            log.info("Upload finalizado: {} - {}", arquivo.getId(), arquivo.getNomeOriginal());
+            log.info("Upload recebido, enviado para análise de segurança: {} - {}", arquivo.getId(), arquivo.getNomeOriginal());
 
         } finally {
             lockRedisService.liberarLock(lockKey, lockId);
@@ -438,8 +431,8 @@ public class ArquivoService {
             throw new RuntimeException("Apenas o remetente pode excluir o arquivo");
         }
         
-        if (arquivo.getStatus() != StatusArquivo.ERRO && arquivo.getStatus() != StatusArquivo.PENDENTE) {
-            throw new RuntimeException("Apenas arquivos com erro ou pendentes podem ser excluídos");
+        if (arquivo.getStatus() != StatusArquivo.ERRO && arquivo.getStatus() != StatusArquivo.PENDENTE && arquivo.getStatus() != StatusArquivo.BLOQUEADO) {
+            throw new RuntimeException("Apenas arquivos com erro, bloqueados ou pendentes podem ser excluídos");
         }
         
         try {
