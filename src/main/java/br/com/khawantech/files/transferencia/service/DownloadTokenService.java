@@ -23,7 +23,7 @@ public class DownloadTokenService {
         String value = arquivoId + ":" + usuarioId;
 
         redisTemplate.opsForValue().set(key, value, TOKEN_EXPIRATION_MINUTES, TimeUnit.MINUTES);
-        log.debug("Token de download gerado: {} para arquivo: {}", token, arquivoId);
+        log.debug("Token de download gerado para arquivo: {}", arquivoId);
 
         return token;
     }
@@ -33,7 +33,7 @@ public class DownloadTokenService {
         String value = redisTemplate.opsForValue().get(key);
 
         if (value == null) {
-            log.warn("Token de download inválido ou expirado: {}", token);
+            log.warn("Token de download inválido ou expirado");
             return null;
         }
 
@@ -41,11 +41,11 @@ public class DownloadTokenService {
 
         String[] parts = value.split(":");
         if (parts.length != 2) {
-            log.error("Token com formato inválido: {}", token);
+            log.error("Token com formato inválido");
             return null;
         }
 
-        log.debug("Token de download validado e consumido: {}", token);
+        log.debug("Token de download validado e consumido");
         return parts;
     }
 }

@@ -163,6 +163,11 @@
 			<artifactId>tika-parsers-standard-package</artifactId>
 			<version>${tika.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.16.1</version>
+		</dependency>
 
 		<!-- Lombok -->
 		<dependency>

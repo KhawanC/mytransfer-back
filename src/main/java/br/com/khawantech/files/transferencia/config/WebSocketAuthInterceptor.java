@@ -34,9 +34,7 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
         String token = extractToken(request);
         
         if (token == null) {
-            log.warn("WebSocket handshake rejected: no token provided");
-            response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            return false;
+            return true;
         }
 
         try {
@@ -65,8 +63,10 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
         } catch (Exception e) {
             log.error("WebSocket handshake failed: {}", e.getMessage());
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
+            return false;
         }
 
+        response.setStatusCode(HttpStatus.UNAUTHORIZED);
         return false;
     }
 

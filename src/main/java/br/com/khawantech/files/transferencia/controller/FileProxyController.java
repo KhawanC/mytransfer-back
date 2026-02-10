@@ -2,6 +2,8 @@ package br.com.khawantech.files.transferencia.controller;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.Set;
 
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -30,6 +32,20 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
 public class FileProxyController {
+
+    private static final Set<String> PREVIEW_MIME_ALLOWLIST = Set.of(
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "application/pdf"
+    );
+
+    private static final Set<String> SCRIPTABLE_MIME_DENYLIST = Set.of(
+        "text/html",
+        "application/xhtml+xml",
+        "image/svg+xml"
+    );
 
     private final ArquivoService arquivoService;
     private final SessaoService sessaoService;
@@ -68,7 +84,7 @@ public class FileProxyController {
         try {
             String[] tokenData = downloadTokenService.validarEConsumirToken(token);
             if (tokenData == null) {
-                log.warn("Tentativa de download com token inválido: {}", token);
+                log.warn("Tentativa de download com token inválido");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
@@ -92,7 +108,12 @@ public class FileProxyController {
             if (contentType == null || contentType.isEmpty()) {
                 contentType = "application/octet-stream";
             }
-            headers.setContentType(MediaType.parseMediaType(contentType));
+            String normalized = normalizeMime(contentType);
+            if (SCRIPTABLE_MIME_DENYLIST.contains(normalized)) {
+                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            } else {
+                headers.setContentType(safeParseMediaType(contentType));
+            }
             
             headers.setContentLength(arquivo.getTamanhoBytes());
             
@@ -100,6 +121,8 @@ public class FileProxyController {
                 .replace("+", "%20");
             headers.add(HttpHeaders.CONTENT_DISPOSITION, 
                 "attachment; filename*=UTF-8''" + encodedFileName);
+
+            headers.set("X-Content-Type-Options", "nosniff");
             
             headers.setCacheControl("no-cache, no-store, must-revalidate");
             headers.add("Pragma", "no-cache");
@@ -123,7 +146,7 @@ public class FileProxyController {
         try {
             String[] tokenData = downloadTokenService.validarEConsumirToken(token);
             if (tokenData == null) {
-                log.warn("Tentativa de preview com token inválido: {}", token);
+                log.warn("Tentativa de preview com token inválido");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
@@ -148,15 +171,27 @@ public class FileProxyController {
             if (contentType == null || contentType.isEmpty()) {
                 contentType = "application/octet-stream";
             }
-            headers.setContentType(MediaType.parseMediaType(contentType));
+            String normalized = normalizeMime(contentType);
+            boolean allowInline = PREVIEW_MIME_ALLOWLIST.contains(normalized);
+            if (allowInline) {
+                headers.setContentType(safeParseMediaType(contentType));
+            } else {
+                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            }
             headers.setContentLength(arquivo.getTamanhoBytes());
             
             String encodedFileName = URLEncoder.encode(arquivo.getNomeOriginal(), StandardCharsets.UTF_8)
                 .replace("+", "%20");
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, 
-                "inline; filename*=UTF-8''" + encodedFileName);
+            headers.add(HttpHeaders.CONTENT_DISPOSITION,
+                (allowInline ? "inline" : "attachment") + "; filename*=UTF-8''" + encodedFileName);
             
-            headers.setCacheControl("private, max-age=3600");
+            headers.set("X-Content-Type-Options", "nosniff");
+            headers.set("Content-Security-Policy",
+                "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; sandbox");
+
+            headers.setCacheControl("no-store");
+            headers.add("Pragma", "no-cache");
+            headers.add("Expires", "0");
 
             log.info("Preview concluído com sucesso via token");
             
@@ -167,6 +202,21 @@ public class FileProxyController {
         } catch (Exception e) {
             log.error("Erro ao fazer preview com token", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private static String normalizeMime(String mime) {
+        if (mime == null || mime.isBlank()) {
+            return "application/octet-stream";
+        }
+        return mime.strip().toLowerCase(Locale.ROOT);
+    }
+
+    private static MediaType safeParseMediaType(String mime) {
+        try {
+            return MediaType.parseMediaType(mime);
+        } catch (Exception e) {
+            return MediaType.APPLICATION_OCTET_STREAM;
         }
     }
 
