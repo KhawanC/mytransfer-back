@@ -2,6 +2,7 @@ package br.com.khawantech.files.auth.filter;
 
 import br.com.khawantech.files.auth.service.CustomUserDetailsService;
 import br.com.khawantech.files.auth.service.JwtService;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +13,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -26,6 +28,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String AUTH_ERROR_ATTR = "mt_auth_error";
+    private static final String AUTH_ERROR_EXPIRED = "expired";
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
@@ -36,14 +40,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         @NonNull HttpServletResponse response,
         @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        
-        try {
-            String jwt = extractTokenFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && jwtService.validateToken(jwt)) {
-                String email = jwtService.extractUsername(jwt);
+        String jwt = extractTokenFromRequest(request);
 
-                if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        boolean tokenValid = false;
+        if (StringUtils.hasText(jwt)) {
+            try {
+                tokenValid = jwtService.validateToken(jwt);
+            } catch (ExpiredJwtException ex) {
+                request.setAttribute(AUTH_ERROR_ATTR, AUTH_ERROR_EXPIRED);
+                tokenValid = false;
+            }
+        }
+
+        if (StringUtils.hasText(jwt) && tokenValid) {
+            String email = jwtService.extractUsername(jwt);
+
+            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                try {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
                     if (jwtService.isTokenValid(jwt, userDetails)) {
@@ -61,10 +75,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                         log.debug("Authenticated user: {}", email);
                     }
+                } catch (UsernameNotFoundException e) {
+                    log.debug("User not found for token subject: {}", email);
+                } catch (IllegalArgumentException e) {
+                    log.error("Cannot set user authentication: {}", e.getMessage());
                 }
             }
-        } catch (Exception e) {
-            log.error("Cannot set user authentication: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);

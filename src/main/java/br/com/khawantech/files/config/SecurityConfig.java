@@ -1,11 +1,17 @@
 package br.com.khawantech.files.config;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.time.Instant;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -23,7 +29,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import br.com.khawantech.files.auth.filter.JwtAuthenticationFilter;
 import br.com.khawantech.files.auth.handler.OAuth2SuccessHandler;
-import br.com.khawantech.files.auth.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -33,7 +38,6 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final CustomUserDetailsService userDetailsService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Value("${app.frontend-url}")
@@ -52,8 +56,11 @@ public class SecurityConfig {
         "/api/files/p/**"     // Preview com token temporário
     };
 
+    private static final String AUTH_ERROR_ATTR = "mt_auth_error";
+    private static final String AUTH_ERROR_EXPIRED = "expired";
+
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
         return http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -63,6 +70,35 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+                    Object authError = request.getAttribute(AUTH_ERROR_ATTR);
+                    String message = AUTH_ERROR_EXPIRED.equals(authError) ? "Sessão expirada" : "Não autenticado";
+
+                    Map<String, Object> body = new LinkedHashMap<>();
+                    body.put("status", HttpStatus.UNAUTHORIZED.value());
+                    body.put("error", "Unauthorized");
+                    body.put("message", message);
+                    body.put("timestamp", Instant.now());
+
+                    objectMapper.writeValue(response.getOutputStream(), body);
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpStatus.FORBIDDEN.value());
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+                    Map<String, Object> body = new LinkedHashMap<>();
+                    body.put("status", HttpStatus.FORBIDDEN.value());
+                    body.put("error", "Forbidden");
+                    body.put("message", "Acesso negado");
+                    body.put("timestamp", Instant.now());
+
+                    objectMapper.writeValue(response.getOutputStream(), body);
+                })
             )
             .oauth2Login(oauth2 -> oauth2
                 .successHandler(oAuth2SuccessHandler)

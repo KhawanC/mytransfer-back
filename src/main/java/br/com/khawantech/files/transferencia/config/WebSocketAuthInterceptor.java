@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -34,6 +35,7 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
         
         if (token == null) {
             log.warn("WebSocket handshake rejected: no token provided");
+            response.setStatusCode(HttpStatus.UNAUTHORIZED);
             return false;
         }
 
@@ -62,6 +64,7 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
             }
         } catch (Exception e) {
             log.error("WebSocket handshake failed: {}", e.getMessage());
+            response.setStatusCode(HttpStatus.UNAUTHORIZED);
         }
 
         return false;
