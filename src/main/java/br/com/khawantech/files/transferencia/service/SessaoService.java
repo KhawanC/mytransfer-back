@@ -21,6 +21,7 @@ import br.com.khawantech.files.transferencia.exception.SessaoLotadaException;
 import br.com.khawantech.files.transferencia.exception.SessaoNaoEncontradaException;
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.SessaoRepository;
+import br.com.khawantech.files.auth.exception.AuthenticationException;
 import br.com.khawantech.files.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +45,7 @@ public class SessaoService {
         validarUsuarioSemSessaoAtiva(usuarioCriadorId);
         
         br.com.khawantech.files.user.entity.User usuario = userRepository.findById(usuarioCriadorId)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+            .orElseThrow(() -> new AuthenticationException("Sessão expirada"));
         
         TransferenciaProperties.UserLimits limites = properties.getLimitsForUserType(usuario.getUserType());
         
@@ -92,7 +93,7 @@ public class SessaoService {
 
         try {
             br.com.khawantech.files.user.entity.User usuario = userRepository.findById(usuarioConvidadoId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                .orElseThrow(() -> new AuthenticationException("Sessão expirada"));
 
             sessao.setUsuarioConvidadoPendenteId(usuarioConvidadoId);
             sessao.setNomeUsuarioConvidadoPendente(usuario.getName());
