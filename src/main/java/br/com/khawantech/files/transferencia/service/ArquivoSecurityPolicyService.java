@@ -2,14 +2,11 @@ package br.com.khawantech.files.transferencia.service;
 
 import java.util.Locale;
 import java.util.Map;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @Service
 public class ArquivoSecurityPolicyService {
 
@@ -37,65 +34,71 @@ public class ArquivoSecurityPolicyService {
         "application/vnd.ms-powerpoint.slideshow.macroenabled.12"
     );
 
+    private static final Map<String, String> MIME_EQUIVALENCE_GROUP;
+
+    static {
+        Map<String, String> groups = new HashMap<>();
+
+        groups.put("video/mp4", "video-mp4");
+        groups.put("video/quicktime", "video-mp4");
+
+        groups.put("audio/mp4", "audio-mp4");
+        groups.put("audio/x-m4a", "audio-mp4");
+        groups.put("audio/m4a", "audio-mp4");
+
+        groups.put("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "ooxml-zip");
+        groups.put("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "ooxml-zip");
+        groups.put("application/vnd.openxmlformats-officedocument.presentationml.presentation", "ooxml-zip");
+        groups.put("application/zip", "ooxml-zip");
+
+        MIME_EQUIVALENCE_GROUP = Map.copyOf(groups);
+    }
+
     public Decision avaliar(String tipoMimeInformado, String tipoMimeDetectado, Map<String, String> metadados) {
         String informado = normalize(tipoMimeInformado);
         String detectado = normalize(tipoMimeDetectado);
 
-        if (MIME_DENYLIST.contains(detectado)) {
-            String motivo = "Arquivo bloqueado: tipo não permitido (" + detectado + ")";
-            log.warn("Policy bloqueou por denylist: informado={} detectado={} metadados={}", informado, detectado, pickMetadados(metadados));
-            return Decision.bloquear(motivo);
+        if (MIME_DENYLIST.contains(informado) || MIME_DENYLIST.contains(detectado)) {
+            return Decision.bloquear("Arquivo bloqueado: tipo não permitido (" + detectado + ")");
         }
 
-        if (MIME_MACRO_ENABLED.contains(detectado)) {
-            String motivo = "Arquivo bloqueado: possível macro habilitada (" + detectado + ")";
-            log.warn("Policy bloqueou por macro-enabled: informado={} detectado={} metadados={}", informado, detectado, pickMetadados(metadados));
-            return Decision.bloquear(motivo);
+        if (MIME_MACRO_ENABLED.contains(informado) || MIME_MACRO_ENABLED.contains(detectado)) {
+            return Decision.bloquear("Arquivo bloqueado: possível macro habilitada (" + detectado + ")");
         }
 
         if (!OCTET_STREAM.equals(informado) && !informado.equals(detectado)) {
-            String motivo = "Arquivo bloqueado: tipo informado divergente do detectado";
-            log.warn("Policy bloqueou por divergência MIME: informado={} detectado={} metadados={}", informado, detectado, pickMetadados(metadados));
-            return Decision.bloquear(motivo);
+            if (isEquivalentMime(informado, detectado)) {
+                return Decision.permitir();
+            }
+            return Decision.bloquear("Arquivo bloqueado: tipo informado divergente do detectado");
         }
 
         return Decision.permitir();
     }
 
-    private static Map<String, String> pickMetadados(Map<String, String> metadados) {
-        if (metadados == null || metadados.isEmpty()) {
-            return Map.of();
+    private static boolean isEquivalentMime(String informado, String detectado) {
+        String g1 = MIME_EQUIVALENCE_GROUP.get(informado);
+        if (g1 == null) {
+            return false;
         }
-
-        Map<String, String> picked = new LinkedHashMap<>();
-
-        putIfPresent(picked, metadados, "Content-Type");
-        putIfPresent(picked, metadados, "resourceName");
-        putIfPresent(picked, metadados, "Content-Encoding");
-        putIfPresent(picked, metadados, "X-Parsed-By");
-        putIfPresent(picked, metadados, "X-TIKA:Parsed-By");
-        putIfPresent(picked, metadados, "tika:content_handler");
-        putIfPresent(picked, metadados, "Content-Length");
-
-        if (picked.isEmpty()) {
-            picked.put("_keys", String.join(",", metadados.keySet().stream().limit(16).toList()));
-        }
-
-        return picked;
+        String g2 = MIME_EQUIVALENCE_GROUP.get(detectado);
+        return g1.equals(g2);
     }
 
-    private static void putIfPresent(Map<String, String> out, Map<String, String> in, String key) {
-        String value = in.get(key);
-        if (value != null && !value.isBlank()) {
-            out.put(key, value);
-        }
-    }
+
 
     private static String normalize(String mime) {
         if (mime == null || mime.isBlank()) {
             return OCTET_STREAM;
         }
-        String lower = mime.strip().toLowerCase(Locale.ROOT);
+
+        String stripped = mime.strip();
+        int paramIdx = stripped.indexOf(';');
+        if (paramIdx > 0) {
+            stripped = stripped.substring(0, paramIdx).strip();
+        }
+
+        String lower = stripped.toLowerCase(Locale.ROOT);
         return switch (lower) {
             case "image/jpg" -> "image/jpeg";
             case "application/x-zip-compressed" -> "application/zip";

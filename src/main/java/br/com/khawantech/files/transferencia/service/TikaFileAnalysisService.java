@@ -35,25 +35,32 @@ public class TikaFileAnalysisService {
         try {
             mimeDetectado = tika.detect(prefixoBytes);
         } catch (Exception e) {
-            log.warn("Falha ao detectar mime via Tika: prefixoBytes={} erro={} mensagem={}", prefixoBytes.length, e.getClass().getSimpleName(), e.getMessage());
+            log.warn("Falha ao detectar mime via Tika: {}", e.getMessage());
             mimeDetectado = "application/octet-stream";
         }
 
-        String normalized = normalizeMime(mimeDetectado);
-        if (log.isDebugEnabled()) {
-            log.debug("Tika detectou mime: prefixoBytes={} mime={} normalized={}", prefixoBytes.length, mimeDetectado, normalized);
-        }
+        String normalizedDetect = normalizeMime(mimeDetectado);
 
         Metadata metadata = new Metadata();
         try {
             parser.parse(new ByteArrayInputStream(prefixoBytes), new DefaultHandler(), metadata, new ParseContext());
         } catch (Exception e) {
-            log.debug("Falha ao extrair metadata via Tika (prefixo): prefixoBytes={} erro={} mensagem={}", prefixoBytes.length, e.getClass().getSimpleName(), e.getMessage());
+            log.debug("Falha ao extrair metadata via Tika (prefixo): {}", e.getMessage());
         }
+
+        String mimeMetadata = normalizeMime(metadata.get("Content-Type"));
+        String chosen = chooseDetectedMime(normalizedDetect, mimeMetadata);
 
         Map<String, String> metadados = toMap(metadata);
 
-        return new AnaliseTikaResponse(normalized, metadados);
+        return new AnaliseTikaResponse(chosen, metadados);
+    }
+
+    private static String chooseDetectedMime(String normalizedDetect, String normalizedMetadata) {
+        if (normalizedMetadata == null || normalizedMetadata.isBlank() || "application/octet-stream".equals(normalizedMetadata)) {
+            return normalizedDetect;
+        }
+        return normalizedMetadata;
     }
 
     private static Map<String, String> toMap(Metadata metadata) {
@@ -97,7 +104,13 @@ public class TikaFileAnalysisService {
             return "application/octet-stream";
         }
 
-        String lower = mime.strip().toLowerCase(Locale.ROOT);
+        String stripped = mime.strip();
+        int paramIdx = stripped.indexOf(';');
+        if (paramIdx > 0) {
+            stripped = stripped.substring(0, paramIdx).strip();
+        }
+
+        String lower = stripped.toLowerCase(Locale.ROOT);
         return switch (lower) {
             case "image/jpg" -> "image/jpeg";
             case "application/x-zip-compressed" -> "application/zip";
