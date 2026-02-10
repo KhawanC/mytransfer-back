@@ -32,6 +32,7 @@ import br.com.khawantech.files.transferencia.exception.HashInvalidoException;
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.ChunkArquivoRepository;
 import br.com.khawantech.files.transferencia.util.FileNameSanitizer;
+import br.com.khawantech.files.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,6 +49,7 @@ public class ArquivoService {
     private final HashService hashService;
     private final LockRedisService lockRedisService;
     private final ProgressoUploadRedisService progressoRedisService;
+    private final UserRepository userRepository;
     private final RateLimitRedisService rateLimitRedisService;
     private final TransferenciaProperties properties;
     private final RabbitTemplate rabbitTemplate;
@@ -69,10 +71,16 @@ public class ArquivoService {
         sessaoService.validarPodeUpload(sessao);
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
         sessaoService.validarLimiteArquivos(sessao);
-
-        if (request.getTamanhoBytes() > properties.getMaxTamanhoBytes()) {
+userRepository
+        var usuarioCriador = sessaoService.getUserRepository().findById(sessao.getUsuarioCriadorId())
+            .orElseThrow(() -> new RuntimeException("Usuário criador não encontrado"));
+        
+        var limites = properties.getLimitsForUserType(usuarioCriador.getUserType());
+        
+        if (request.getTamanhoBytes() > limites.maxTamanhoBytes()) {
             throw new ArquivoMuitoGrandeException(
-                "Arquivo muito grande. Máximo permitido: " + properties.getMaxTamanhoMb() + " MB"
+                String.format("Arquivo muito grande para tipo %s. Máximo permitido: %d MB",
+                              usuarioCriador.getUserType(), limites.maxTamanhoMb())
             );
         }
 

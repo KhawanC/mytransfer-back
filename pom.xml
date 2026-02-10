@@ -30,6 +30,8 @@
 		<java.version>21</java.version>
 		<jjwt.version>0.12.6</jjwt.version>
 		<mongock.version>5.4.4</mongock.version>
+		<zxing.version>3.5.3</zxing.version>
+		<minio.version>8.5.13</minio.version>
 	</properties>
 	<dependencies>
 		<!-- Spring Boot Starters -->
@@ -62,12 +64,12 @@
 		<dependency>
 			<groupId>com.google.zxing</groupId>
 			<artifactId>core</artifactId>
-			<version>3.5.3</version>
+			<version>${zxing.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.zxing</groupId>
 			<artifactId>javase</artifactId>
-			<version>3.5.3</version>
+			<version>${zxing.version}</version>
 		</dependency>
 
 		<!-- Security & OAuth2 -->
@@ -114,6 +116,12 @@
 			<groupId>me.paulschwarz</groupId>
 			<artifactId>spring-dotenv</artifactId>
 			<version>4.0.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.yaml</groupId>
+					<artifactId>snakeyaml</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Mongock for MongoDB Migrations -->
@@ -132,7 +140,7 @@
 		<dependency>
 			<groupId>io.minio</groupId>
 			<artifactId>minio</artifactId>
-			<version>8.5.7</version>
+			<version>${minio.version}</version>
 		</dependency>
 
 		<!-- Lombok -->

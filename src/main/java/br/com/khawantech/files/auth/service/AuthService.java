@@ -1,5 +1,8 @@
 package br.com.khawantech.files.auth.service;
 
+import java.time.Instant;
+import java.util.UUID;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,6 +15,7 @@ import br.com.khawantech.files.auth.dto.RegisterRequest;
 import br.com.khawantech.files.auth.exception.AuthenticationException;
 import br.com.khawantech.files.user.entity.AuthProvider;
 import br.com.khawantech.files.user.entity.User;
+import br.com.khawantech.files.user.entity.UserType;
 import br.com.khawantech.files.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +42,7 @@ public class AuthService {
             .email(request.getEmail().toLowerCase())
             .password(passwordEncoder.encode(request.getPassword()))
             .authProvider(AuthProvider.LOCAL)
+            .userType(UserType.FREE)
             .build();
 
         user = userService.save(user);
@@ -82,6 +87,28 @@ public class AuthService {
         return createAuthResponse(user);
     }
 
+    public AuthResponse criarUsuarioConvidado() {
+        log.info("Creating new guest user");
+
+        String guestId = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        String guestName = "Visitante-" + guestId;
+        String guestEmail = "guest-" + UUID.randomUUID().toString() + "@temp.local";
+
+        User guestUser = User.builder()
+            .name(guestName)
+            .email(guestEmail)
+            .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+            .authProvider(AuthProvider.LOCAL)
+            .userType(UserType.GUEST)
+            .guestCreatedAt(Instant.now())
+            .build();
+
+        guestUser = userService.save(guestUser);
+        log.info("Guest user created successfully: {} ({})", guestUser.getName(), guestUser.getId());
+
+        return createAuthResponse(guestUser);
+    }
+
     public AuthResponse createAuthResponse(User user) {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
@@ -91,6 +118,7 @@ public class AuthService {
             .email(user.getEmail())
             .name(user.getName())
             .authProvider(user.getAuthProvider().name())
+            .userType(user.getUserType().name())
             .build();
 
         return AuthResponse.of(

@@ -39,11 +39,16 @@ public class SessaoService {
     public SessaoResponse criarSessao(String usuarioCriadorId) {
         validarUsuarioSemSessaoAtiva(usuarioCriadorId);
         
+        var usuario = userRepository.findById(usuarioCriadorId)
+            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        
+        var limites = properties.getLimitsForUserType(usuario.getUserType());
+        
         Sessao sessao = Sessao.builder()
             .usuarioCriadorId(usuarioCriadorId)
             .status(StatusSessao.AGUARDANDO)
             .criadaEm(Instant.now())
-            .expiraEm(Instant.now().plusMillis(properties.getSessaoTtlMs()))
+            .expiraEm(Instant.now().plusMillis(limites.sessaoDuracaoMs()))
             .hashExpiraEm(Instant.now().plusSeconds(20))
             .build();
 
@@ -55,7 +60,8 @@ public class SessaoService {
 
         String qrCodeBase64 = qrCodeService.gerarQRCodeBase64(sessao.getHashConexao());
 
-        log.info("Sessão criada: {} por usuário: {}", sessao.getId(), usuarioCriadorId);
+        log.info("Sessão criada: {} por usuário {} ({}): duração {}min", 
+                 sessao.getId(), usuarioCriadorId, usuario.getUserType(), limites.sessaoDuracaoMinutos());
 
         return toSessaoResponse(sessao, qrCodeBase64, usuarioCriadorId);
     }
@@ -298,8 +304,21 @@ public class SessaoService {
     }
 
     public void validarLimiteArquivos(Sessao sessao) {
-        if (!sessao.podeReceberArquivos(properties.getMaxArquivos())) {
-            throw new SessaoLotadaException("Limite de arquivos atingido: " + properties.getMaxArquivos());
+        var usuario = userRepository.findById(sessao.getUsuarioCriadorId())
+            .orElseThrow(() -> new RuntimeException("Usuário criador não encontrado"));
+        
+        var limites = properties.getLimitsForUserType(usuario.getUserType());
+        
+        if (limites.hasUnlimitedFiles()) {
+            log.debug("Usuário {} tem arquivos ilimitados (PREMIUM)", usuario.getId());
+            return;
+        }
+        
+        if (!sessao.podeReceberArquivos(limites.maxArquivos())) {
+            throw new SessaoLotadaException(
+                String.format("Limite de arquivos atingido para tipo %s: %d", 
+                              usuario.getUserType(), limites.maxArquivos())
+            );
         }
     }
 
@@ -463,6 +482,23 @@ public class SessaoService {
             .podeUpload(podeUpload)
             .podeEncerrar(podeEncerrar)
             .estaAtiva(estaAtiva)
+            .build();
+    }
+
+    public br.com.khawantech.files.transferencia.dto.SessaoLimitesResponse buscarLimitesSessao(String sessaoId) {
+        Sessao sessao = buscarPorId(sessaoId);
+        
+        var usuarioCriador = userRepository.findById(sessao.getUsuarioCriadorId())
+            .orElseThrow(() -> new RuntimeException("Usuário criador não encontrado"));
+        
+        var limites = properties.getLimitsForUserType(usuarioCriador.getUserType());
+        
+        return br.com.khawantech.files.transferencia.dto.SessaoLimitesResponse.builder()
+            .maxArquivos(limites.maxArquivos())
+            .maxTamanhoMb(limites.maxTamanhoMb())
+            .duracaoMinutos(limites.sessaoDuracaoMinutos())
+            .userType(usuarioCriador.getUserType().name())
+            .arquivosIlimitados(limites.hasUnlimitedFiles())
             .build();
     }
 }

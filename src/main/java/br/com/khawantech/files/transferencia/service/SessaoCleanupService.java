@@ -15,6 +15,8 @@ import br.com.khawantech.files.transferencia.entity.StatusSessao;
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.ChunkArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.SessaoRepository;
+import br.com.khawantech.files.user.entity.UserType;
+import br.com.khawantech.files.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +34,7 @@ public class SessaoCleanupService {
     private final MinioService minioService;
     private final WebSocketNotificationService notificationService;
     private final TransferenciaProperties properties;
+    private final UserRepository userRepository;
 
     @Scheduled(fixedRate = 300000)
     @Transactional
@@ -41,6 +44,7 @@ public class SessaoCleanupService {
         try {
             expirarSessoesAtivas();
             limparSessoesExpiradas();
+            limparUsuariosConvidadosExpirados();
         } catch (Exception e) {
             log.error("Erro durante limpeza de sessões: {}", e.getMessage(), e);
         }
@@ -146,5 +150,59 @@ public class SessaoCleanupService {
         }
 
         log.info("Limpeza de arquivos órfãos finalizada");
+    }
+
+    private void limparUsuariosConvidadosExpirados() {
+        log.info("Iniciando limpeza de usuários convidados expirados");
+
+        try {
+            Instant limiteExpiracao = Instant.now().minus(1, ChronoUnit.HOURS);
+
+            var usuariosExpirados = userRepository.findAll().stream()
+                .filter(user -> user.getUserType() == UserType.GUEST)
+                .filter(user -> user.getGuestCreatedAt() != null)
+                .filter(user -> user.getGuestCreatedAt().isBefore(limiteExpiracao))
+                .toList();
+
+            int totalRemovidos = 0;
+
+            for (var usuario : usuariosExpirados) {
+                try {
+                    List<Sessao> sessoesDoGuest = sessaoRepository
+                        .findByUsuarioCriadorIdOrUsuarioConvidadoId(
+                            usuario.getId(), 
+                            usuario.getId()
+                        );
+
+                    for (Sessao sessao : sessoesDoGuest) {
+                        try {
+                            removerSessaoCompleta(sessao);
+                        } catch (Exception e) {
+                            log.error("Erro ao remover sessão {} do guest {}: {}", 
+                                sessao.getId(), usuario.getId(), e.getMessage());
+                        }
+                    }
+
+                    userRepository.delete(usuario);
+                    totalRemovidos++;
+
+                    log.info("Usuário guest expirado removido: {} ({}), criado em {}", 
+                        usuario.getName(), usuario.getId(), usuario.getGuestCreatedAt());
+
+                } catch (Exception e) {
+                    log.error("Erro ao remover usuário guest {}: {}", 
+                        usuario.getId(), e.getMessage());
+                }
+            }
+
+            if (totalRemovidos > 0) {
+                log.info("Total de usuários convidados expirados removidos: {}", totalRemovidos);
+            }
+
+        } catch (Exception e) {
+            log.error("Erro durante limpeza de usuários convidados: {}", e.getMessage(), e);
+        }
+
+        log.info("Limpeza de usuários convidados finalizada");
     }
 }

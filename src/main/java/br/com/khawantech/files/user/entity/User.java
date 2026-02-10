@@ -49,6 +49,11 @@ public class User implements UserDetails {
     private String googleId;
 
     @Builder.Default
+    private UserType userType = UserType.FREE;
+
+    private Instant guestCreatedAt;
+
+    @Builder.Default
     private boolean enabled = true;
 
     @Builder.Default

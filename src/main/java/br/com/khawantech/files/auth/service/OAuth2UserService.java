@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import br.com.khawantech.files.auth.exception.AuthenticationException;
 import br.com.khawantech.files.user.entity.AuthProvider;
 import br.com.khawantech.files.user.entity.User;
+import br.com.khawantech.files.user.entity.UserType;
 import br.com.khawantech.files.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ public class OAuth2UserService {
                     .email(email.toLowerCase())
                     .googleId(googleId)
                     .authProvider(AuthProvider.GOOGLE)
+                    .userType(UserType.FREE)
                     .build();
                 
                 return userService.save(newUser);

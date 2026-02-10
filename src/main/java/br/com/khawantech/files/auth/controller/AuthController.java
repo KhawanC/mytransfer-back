@@ -48,6 +48,13 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/guest")
+    public ResponseEntity<AuthResponse> loginAsGuest() {
+        log.info("Guest login request");
+        AuthResponse response = authService.criarUsuarioConvidado();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @GetMapping("/me")
     public ResponseEntity<AuthResponse.UserInfo> getCurrentUser(@AuthenticationPrincipal User user) {
         if (user == null) {
@@ -62,6 +69,7 @@ public class AuthController {
             .email(user.getEmail())
             .name(user.getName())
             .authProvider(user.getAuthProvider().name())
+            .userType(user.getUserType().name())
             .build();
         
         return ResponseEntity.ok(userInfo);

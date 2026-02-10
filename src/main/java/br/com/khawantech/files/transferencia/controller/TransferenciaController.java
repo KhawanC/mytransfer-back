@@ -23,6 +23,7 @@ import br.com.khawantech.files.transferencia.dto.ProgressoDetalhadoResponse;
 import br.com.khawantech.files.transferencia.dto.ProgressoUploadResponse;
 import br.com.khawantech.files.transferencia.dto.RejeitarEntradaRequest;
 import br.com.khawantech.files.transferencia.dto.SairSessaoRequest;
+import br.com.khawantech.files.transferencia.dto.SessaoLimitesResponse;
 import br.com.khawantech.files.transferencia.dto.SessaoResponse;
 import br.com.khawantech.files.transferencia.dto.UploadPendenteResponse;
 import br.com.khawantech.files.transferencia.service.ArquivoService;
@@ -189,6 +190,15 @@ public class TransferenciaController {
             @AuthenticationPrincipal User user) {
         String url = arquivoService.gerarUrlDownload(arquivoId, user.getId());
         return ResponseEntity.ok(new DownloadResponse(arquivoId, url));
+    }
+
+    @GetMapping("/sessao/{sessaoId}/limites")
+    public ResponseEntity<SessaoLimitesResponse> buscarLimitesSessao(
+            @PathVariable String sessaoId,
+            @AuthenticationPrincipal User user) {
+        log.info("REST: Buscando limites da sessão {}", sessaoId);
+        SessaoLimitesResponse limites = sessaoService.buscarLimitesSessao(sessaoId);
+        return ResponseEntity.ok(limites);
     }
 
     public record DownloadResponse(String arquivoId, String urlDownload) {}

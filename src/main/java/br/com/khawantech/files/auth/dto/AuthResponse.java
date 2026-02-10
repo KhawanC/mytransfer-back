@@ -28,6 +28,7 @@ public class AuthResponse {
         private String email;
         private String name;
         private String authProvider;
+        private String userType;
     }
 
     public static AuthResponse of(String accessToken, String refreshToken, long expiresIn, UserInfo user) {

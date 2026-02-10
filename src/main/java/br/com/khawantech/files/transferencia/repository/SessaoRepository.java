@@ -28,6 +28,8 @@ public interface SessaoRepository extends MongoRepository<Sessao, String> {
 
     boolean existsByHashConexao(String hashConexao);
 
+    List<Sessao> findByUsuarioCriadorIdOrUsuarioConvidadoId(String usuarioCriadorId, String usuarioConvidadoId);
+
     List<Sessao> findByUsuarioCriadorIdOrUsuarioConvidadoIdOrderByCriadaEmDesc(String usuarioCriadorId, String usuarioConvidadoId);
     
     @Query("{ $or: [ { 'usuarioCriadorId': ?0 }, { 'usuarioConvidadoId': ?0 }, { 'usuarioConvidadoPendenteId': ?0 } ] }")

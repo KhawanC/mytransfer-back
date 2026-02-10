@@ -74,6 +74,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             .email(user.getEmail())
             .name(user.getName())
             .authProvider(user.getAuthProvider().name())
+            .userType(user.getUserType().name())
             .build();
 
         return AuthResponse.of(
