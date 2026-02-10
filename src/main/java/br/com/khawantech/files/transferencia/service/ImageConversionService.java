@@ -142,11 +142,14 @@ public class ImageConversionService {
 
             FormatoImagem formatoDestino = FormatoImagem.valueOf(event.getFormatoDestino());
 
+            Arquivo arquivoConvertido = criarArquivoConvertido(arquivoOriginal, formatoDestino, arquivoOriginal.getTamanhoBytes());
+            notificationService.notificarArquivoProcessando(arquivoConvertido.getSessaoId(), arquivoConvertido);
+
             byte[] imagemOriginal = obterImagemOriginal(arquivoOriginal);
 
             byte[] imagemConvertida = executarConversao(imagemOriginal, arquivoOriginal.getTipoMime(), formatoDestino);
 
-            Arquivo arquivoConvertido = criarArquivoConvertido(arquivoOriginal, formatoDestino, imagemConvertida.length);
+            arquivoConvertido.setTamanhoBytes(imagemConvertida.length);
 
             String caminhoMinio = String.format("%s/%s/%s",
                 arquivoConvertido.getSessaoId(),

@@ -35,6 +35,7 @@ public class NotificacaoResponse {
         UPLOAD_ERRO,
         ARQUIVO_DISPONIVEL,
         ARQUIVO_BLOQUEADO,
+        ARQUIVO_PROCESSANDO,
         ARQUIVO_CONVERTIDO,
         ARQUIVO_OTIMIZADO
     }

@@ -124,10 +124,13 @@ public class ImageOptimizationService {
             FormatoImagem formato = FormatoImagem.fromMimeType(arquivoOriginal.getTipoMime())
                 .orElseThrow(() -> new ConversaoNaoSuportadaException("Formato original não suportado"));
 
+            Arquivo arquivoOtimizado = criarArquivoOtimizado(arquivoOriginal, event.getNivel(), arquivoOriginal.getTamanhoBytes());
+            notificationService.notificarArquivoProcessando(arquivoOtimizado.getSessaoId(), arquivoOtimizado);
+
             byte[] imagemOriginal = obterImagemOriginal(arquivoOriginal);
             byte[] imagemOtimizada = executarOtimizacao(imagemOriginal, formato, event.getNivel());
 
-            Arquivo arquivoOtimizado = criarArquivoOtimizado(arquivoOriginal, event.getNivel(), imagemOtimizada.length);
+            arquivoOtimizado.setTamanhoBytes(imagemOtimizada.length);
 
             String caminhoMinio = String.format("%s/%s/%s",
                 arquivoOtimizado.getSessaoId(),

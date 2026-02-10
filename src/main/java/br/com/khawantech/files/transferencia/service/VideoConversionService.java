@@ -140,6 +140,9 @@ public class VideoConversionService {
             FormatoVideo formatoDestino = FormatoVideo.fromApiValue(event.getFormatoDestino())
                 .orElseThrow(() -> new ConversaoNaoSuportadaException("Formato de conversão não suportado"));
 
+            Arquivo arquivoConvertido = criarArquivoConvertido(arquivoOriginal, formatoDestino, arquivoOriginal.getTamanhoBytes());
+            notificationService.notificarArquivoProcessando(arquivoConvertido.getSessaoId(), arquivoConvertido);
+
             MinioService.ArquivoData arquivoData = minioService.obterArquivo(arquivoOriginal.getCaminhoMinio());
 
             tempInputPath = Files.createTempFile("video_input_", "." + detectarExtensaoEntrada(arquivoOriginal));
@@ -152,7 +155,7 @@ public class VideoConversionService {
             executarConversao(tempInputPath, tempOutputPath, formatoDestino);
 
             long tamanhoBytes = Files.size(tempOutputPath);
-            Arquivo arquivoConvertido = criarArquivoConvertido(arquivoOriginal, formatoDestino, tamanhoBytes);
+            arquivoConvertido.setTamanhoBytes(tamanhoBytes);
 
             String caminhoMinio = String.format("%s/%s/%s",
                 arquivoConvertido.getSessaoId(),

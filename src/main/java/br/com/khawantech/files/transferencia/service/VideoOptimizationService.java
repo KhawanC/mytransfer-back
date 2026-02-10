@@ -119,6 +119,9 @@ public class VideoOptimizationService {
             FormatoVideo formato = FormatoVideo.fromMimeType(arquivoOriginal.getTipoMime())
                 .orElseThrow(() -> new ConversaoNaoSuportadaException("Formato de vídeo não suportado"));
 
+            Arquivo arquivoOtimizado = criarArquivoOtimizado(arquivoOriginal, event.getNivel(), arquivoOriginal.getTamanhoBytes());
+            notificationService.notificarArquivoProcessando(arquivoOtimizado.getSessaoId(), arquivoOtimizado);
+
             MinioService.ArquivoData arquivoData = minioService.obterArquivo(arquivoOriginal.getCaminhoMinio());
 
             tempInputPath = Files.createTempFile("video_opt_input_", "." + detectarExtensaoEntrada(arquivoOriginal));
@@ -131,7 +134,7 @@ public class VideoOptimizationService {
             executarOtimizacao(tempInputPath, tempOutputPath, formato, event.getNivel());
 
             long tamanhoBytes = Files.size(tempOutputPath);
-            Arquivo arquivoOtimizado = criarArquivoOtimizado(arquivoOriginal, event.getNivel(), tamanhoBytes);
+            arquivoOtimizado.setTamanhoBytes(tamanhoBytes);
 
             String caminhoMinio = String.format("%s/%s/%s",
                 arquivoOtimizado.getSessaoId(),

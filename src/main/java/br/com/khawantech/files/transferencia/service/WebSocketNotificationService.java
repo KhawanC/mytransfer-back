@@ -200,6 +200,25 @@ public class WebSocketNotificationService {
         notificarSessao(sessaoId, notificacao);
     }
 
+    public void notificarArquivoProcessando(String sessaoId, Arquivo arquivo) {
+        NotificacaoResponse notificacao = NotificacaoResponse.builder()
+            .tipo(NotificacaoResponse.TipoNotificacao.ARQUIVO_PROCESSANDO)
+            .sessaoId(sessaoId)
+            .mensagem("Arquivo em processamento: " + arquivo.getNomeOriginal())
+            .dados(new ArquivoProcessando(
+                arquivo.getId(),
+                arquivo.getArquivoOriginalId(),
+                arquivo.getNomeOriginal(),
+                arquivo.getFormatoConvertido(),
+                arquivo.getOtimizacaoNivel()
+            ))
+            .timestamp(Instant.now())
+            .build();
+
+        notificarSessao(sessaoId, notificacao);
+        log.info("Notificação de processamento enviada para sessão {}: arquivo {}", sessaoId, arquivo.getId());
+    }
+
     public void notificarConversaoConcluida(String sessaoId, Arquivo arquivoConvertido) {
         NotificacaoResponse notificacao = NotificacaoResponse.builder()
             .tipo(NotificacaoResponse.TipoNotificacao.ARQUIVO_CONVERTIDO)
@@ -242,6 +261,9 @@ public class WebSocketNotificationService {
     public record ArquivoDisponivel(String arquivoId, String nomeArquivo, String urlDownload, boolean conversivel) {}
 
     public record ArquivoBloqueado(String arquivoId, String motivo) {}
+
+    public record ArquivoProcessando(String arquivoId, String arquivoOriginalId, String nomeArquivo,
+                                     String formato, Integer nivel) {}
     
     public record ArquivoConvertido(String arquivoId, String arquivoOriginalId, String nomeArquivo, 
                                     String formato, Long tamanhoBytes) {}
