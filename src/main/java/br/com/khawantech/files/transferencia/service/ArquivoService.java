@@ -150,7 +150,7 @@ public class ArquivoService {
         Arquivo arquivo = buscarArquivoPorId(request.getArquivoId());
         Sessao sessao = sessaoService.buscarPorId(request.getSessaoId());
 
-        sessaoService.validarSessaoAtiva(sessao);
+        sessaoService.validarPodeUpload(sessao);
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
 
         if (!arquivo.getSessaoId().equals(request.getSessaoId())) {
