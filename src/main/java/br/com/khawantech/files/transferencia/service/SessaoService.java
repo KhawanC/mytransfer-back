@@ -39,10 +39,10 @@ public class SessaoService {
     public SessaoResponse criarSessao(String usuarioCriadorId) {
         validarUsuarioSemSessaoAtiva(usuarioCriadorId);
         
-        var usuario = userRepository.findById(usuarioCriadorId)
+        br.com.khawantech.files.user.entity.User usuario = userRepository.findById(usuarioCriadorId)
             .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
         
-        var limites = properties.getLimitsForUserType(usuario.getUserType());
+        TransferenciaProperties.UserLimits limites = properties.getLimitsForUserType(usuario.getUserType());
         
         Sessao sessao = Sessao.builder()
             .usuarioCriadorId(usuarioCriadorId)
@@ -87,7 +87,7 @@ public class SessaoService {
         }
 
         try {
-            var usuario = userRepository.findById(usuarioConvidadoId)
+            br.com.khawantech.files.user.entity.User usuario = userRepository.findById(usuarioConvidadoId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
             sessao.setUsuarioConvidadoPendenteId(usuarioConvidadoId);
@@ -304,10 +304,10 @@ public class SessaoService {
     }
 
     public void validarLimiteArquivos(Sessao sessao) {
-        var usuario = userRepository.findById(sessao.getUsuarioCriadorId())
+        br.com.khawantech.files.user.entity.User usuario = userRepository.findById(sessao.getUsuarioCriadorId())
             .orElseThrow(() -> new RuntimeException("Usuário criador não encontrado"));
         
-        var limites = properties.getLimitsForUserType(usuario.getUserType());
+        TransferenciaProperties.UserLimits limites = properties.getLimitsForUserType(usuario.getUserType());
         
         if (limites.hasUnlimitedFiles()) {
             log.debug("Usuário {} tem arquivos ilimitados (PREMIUM)", usuario.getId());
@@ -488,10 +488,10 @@ public class SessaoService {
     public br.com.khawantech.files.transferencia.dto.SessaoLimitesResponse buscarLimitesSessao(String sessaoId) {
         Sessao sessao = buscarPorId(sessaoId);
         
-        var usuarioCriador = userRepository.findById(sessao.getUsuarioCriadorId())
+        br.com.khawantech.files.user.entity.User usuarioCriador = userRepository.findById(sessao.getUsuarioCriadorId())
             .orElseThrow(() -> new RuntimeException("Usuário criador não encontrado"));
         
-        var limites = properties.getLimitsForUserType(usuarioCriador.getUserType());
+        TransferenciaProperties.UserLimits limites = properties.getLimitsForUserType(usuarioCriador.getUserType());
         
         return br.com.khawantech.files.transferencia.dto.SessaoLimitesResponse.builder()
             .maxArquivos(limites.maxArquivos())

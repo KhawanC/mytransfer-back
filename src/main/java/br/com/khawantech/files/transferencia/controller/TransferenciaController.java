@@ -26,6 +26,7 @@ import br.com.khawantech.files.transferencia.dto.SairSessaoRequest;
 import br.com.khawantech.files.transferencia.dto.SessaoLimitesResponse;
 import br.com.khawantech.files.transferencia.dto.SessaoResponse;
 import br.com.khawantech.files.transferencia.dto.UploadPendenteResponse;
+import br.com.khawantech.files.transferencia.entity.Sessao;
 import br.com.khawantech.files.transferencia.service.ArquivoService;
 import br.com.khawantech.files.transferencia.service.SessaoService;
 import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
@@ -98,7 +99,7 @@ public class TransferenciaController {
     public ResponseEntity<SessaoResponse> buscarSessao(
             @PathVariable String sessaoId,
             @AuthenticationPrincipal User user) {
-        var sessao = sessaoService.buscarPorId(sessaoId);
+        Sessao sessao = sessaoService.buscarPorId(sessaoId);
         sessaoService.validarUsuarioPertenceASessao(sessao, user.getId());
 
         return ResponseEntity.ok(SessaoResponse.builder()

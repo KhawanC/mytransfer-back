@@ -1,20 +1,23 @@
 package br.com.khawantech.files.transferencia.config;
 
-import br.com.khawantech.files.auth.service.JwtService;
-import br.com.khawantech.files.user.service.UserService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
+import java.util.Optional;
+
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.Map;
+import br.com.khawantech.files.auth.service.JwtService;
+import br.com.khawantech.files.user.service.UserService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -38,16 +41,16 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
             String userEmail = jwtService.extractUsername(token);
             
             if (userEmail != null) {
-                var userOptional = userService.findByEmail(userEmail);
+                Optional<br.com.khawantech.files.user.entity.User> userOptional = userService.findByEmail(userEmail);
                 
                 if (userOptional.isPresent()) {
-                    var user = userOptional.get();
+                    br.com.khawantech.files.user.entity.User user = userOptional.get();
                     
                     if (jwtService.isTokenValid(token, user)) {
                         attributes.put("user", user);
                         attributes.put("userId", user.getId());
                         
-                        var authentication = new UsernamePasswordAuthenticationToken(
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             user, null, user.getAuthorities()
                         );
                         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -72,7 +75,7 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
     private String extractToken(ServerHttpRequest request) {
         String query = request.getURI().getQuery();
         if (query != null) {
-            var params = UriComponentsBuilder.newInstance().query(query).build().getQueryParams();
+            MultiValueMap<String, String> params = UriComponentsBuilder.newInstance().query(query).build().getQueryParams();
             String token = params.getFirst("token");
             if (token != null) {
                 return token;

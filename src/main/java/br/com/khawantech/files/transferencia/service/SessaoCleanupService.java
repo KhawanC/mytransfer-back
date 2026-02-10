@@ -158,7 +158,7 @@ public class SessaoCleanupService {
         try {
             Instant limiteExpiracao = Instant.now().minus(1, ChronoUnit.HOURS);
 
-            var usuariosExpirados = userRepository.findAll().stream()
+            List<br.com.khawantech.files.user.entity.User> usuariosExpirados = userRepository.findAll().stream()
                 .filter(user -> user.getUserType() == UserType.GUEST)
                 .filter(user -> user.getGuestCreatedAt() != null)
                 .filter(user -> user.getGuestCreatedAt().isBefore(limiteExpiracao))
@@ -166,7 +166,7 @@ public class SessaoCleanupService {
 
             int totalRemovidos = 0;
 
-            for (var usuario : usuariosExpirados) {
+            for (br.com.khawantech.files.user.entity.User usuario : usuariosExpirados) {
                 try {
                     List<Sessao> sessoesDoGuest = sessaoRepository
                         .findByUsuarioCriadorIdOrUsuarioConvidadoId(

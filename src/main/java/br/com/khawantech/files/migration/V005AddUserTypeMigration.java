@@ -20,7 +20,7 @@ public class V005AddUserTypeMigration {
             .set("userType", "FREE")
             .setOnInsert("guestCreatedAt", null);
         
-        var result = mongoTemplate.updateMulti(query, update, COLLECTION_NAME);
+        com.mongodb.client.result.UpdateResult result = mongoTemplate.updateMulti(query, update, COLLECTION_NAME);
         
         System.out.println("Migration V005: Updated " + result.getModifiedCount() + " users with userType=FREE");
     }

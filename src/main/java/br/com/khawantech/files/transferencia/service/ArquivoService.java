@@ -32,6 +32,7 @@ import br.com.khawantech.files.transferencia.exception.HashInvalidoException;
 import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.ChunkArquivoRepository;
 import br.com.khawantech.files.transferencia.util.FileNameSanitizer;
+import br.com.khawantech.files.user.entity.User;
 import br.com.khawantech.files.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,11 +72,11 @@ public class ArquivoService {
         sessaoService.validarPodeUpload(sessao);
         sessaoService.validarUsuarioPertenceASessao(sessao, usuarioId);
         sessaoService.validarLimiteArquivos(sessao);
-userRepository
-        var usuarioCriador = sessaoService.getUserRepository().findById(sessao.getUsuarioCriadorId())
+
+        User usuarioCriador = userRepository.findById(sessao.getUsuarioCriadorId())
             .orElseThrow(() -> new RuntimeException("Usuário criador não encontrado"));
         
-        var limites = properties.getLimitsForUserType(usuarioCriador.getUserType());
+        TransferenciaProperties.UserLimits limites = properties.getLimitsForUserType(usuarioCriador.getUserType());
         
         if (request.getTamanhoBytes() > limites.maxTamanhoBytes()) {
             throw new ArquivoMuitoGrandeException(
