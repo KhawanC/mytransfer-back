@@ -55,6 +55,8 @@ public class Arquivo implements Serializable {
 
     private Map<String, String> metadadosTika;
 
+    private Map<String, String> metadadosTecnicos;
+
     private String caminhoMinio;
 
     @Indexed
@@ -76,6 +78,12 @@ public class Arquivo implements Serializable {
     private String arquivoOriginalId;
 
     private String formatoConvertido;
+
+    private String tag;
+
+    private Integer otimizacaoNivel;
+
+    private Long tamanhoOriginalBytes;
 
     private String mensagemErro;
 

@@ -219,12 +219,35 @@ public class WebSocketNotificationService {
         log.info("Notificação de conversão enviada para sessão {}: arquivo {}", sessaoId, arquivoConvertido.getId());
     }
 
+    public void notificarOtimizacaoConcluida(String sessaoId, Arquivo arquivoOtimizado) {
+        NotificacaoResponse notificacao = NotificacaoResponse.builder()
+            .tipo(NotificacaoResponse.TipoNotificacao.ARQUIVO_OTIMIZADO)
+            .sessaoId(sessaoId)
+            .mensagem("Arquivo otimizado com sucesso: " + arquivoOtimizado.getNomeOriginal())
+            .dados(new ArquivoOtimizado(
+                arquivoOtimizado.getId(),
+                arquivoOtimizado.getArquivoOriginalId(),
+                arquivoOtimizado.getNomeOriginal(),
+                arquivoOtimizado.getOtimizacaoNivel(),
+                arquivoOtimizado.getTamanhoBytes(),
+                arquivoOtimizado.getTamanhoOriginalBytes()
+            ))
+            .timestamp(Instant.now())
+            .build();
+
+        notificarSessao(sessaoId, notificacao);
+        log.info("Notificação de otimização enviada para sessão {}: arquivo {}", sessaoId, arquivoOtimizado.getId());
+    }
+
     public record ArquivoDisponivel(String arquivoId, String nomeArquivo, String urlDownload, boolean conversivel) {}
 
     public record ArquivoBloqueado(String arquivoId, String motivo) {}
     
     public record ArquivoConvertido(String arquivoId, String arquivoOriginalId, String nomeArquivo, 
                                     String formato, Long tamanhoBytes) {}
+
+    public record ArquivoOtimizado(String arquivoId, String arquivoOriginalId, String nomeArquivo,
+                                   Integer nivel, Long tamanhoBytes, Long tamanhoOriginalBytes) {}
     
     public record SolicitacaoEntrada(String usuarioConvidadoPendenteId, String nomeUsuario) {}
     

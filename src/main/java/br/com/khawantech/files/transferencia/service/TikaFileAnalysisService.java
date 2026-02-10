@@ -56,6 +56,22 @@ public class TikaFileAnalysisService {
         return new AnaliseTikaResponse(chosen, metadados);
     }
 
+    public Map<String, String> analisarArquivoCompleto(java.nio.file.Path arquivoPath) {
+        if (arquivoPath == null) {
+            return Map.of();
+        }
+
+        Metadata metadata = new Metadata();
+        try (java.io.InputStream inputStream = java.nio.file.Files.newInputStream(arquivoPath)) {
+            parser.parse(inputStream, new DefaultHandler(), metadata, new ParseContext());
+        } catch (Exception e) {
+            log.debug("Falha ao extrair metadata via Tika (arquivo completo): {}", e.getMessage());
+            return Map.of();
+        }
+
+        return toMap(metadata);
+    }
+
     private static String chooseDetectedMime(String normalizedDetect, String normalizedMetadata) {
         if (normalizedMetadata == null || normalizedMetadata.isBlank() || "application/octet-stream".equals(normalizedMetadata)) {
             return normalizedDetect;

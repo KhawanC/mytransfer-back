@@ -43,4 +43,10 @@ public interface ArquivoRepository extends MongoRepository<Arquivo, String> {
         String formatoConvertido,
         List<StatusArquivo> statuses
     );
+
+    boolean existsByArquivoOriginalIdAndOtimizacaoNivelAndStatusIn(
+        String arquivoOriginalId,
+        Integer otimizacaoNivel,
+        List<StatusArquivo> statuses
+    );
 }

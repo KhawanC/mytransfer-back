@@ -30,4 +30,7 @@ public class ArquivoResponse {
     private Boolean conversivel;
     private String arquivoOriginalId;
     private String formatoConvertido;
+    private String tag;
+    private Integer otimizacaoNivel;
+    private Long tamanhoOriginalBytes;
 }

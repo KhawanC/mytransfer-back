@@ -17,6 +17,7 @@ import br.com.khawantech.files.transferencia.repository.ArquivoRepository;
 import br.com.khawantech.files.transferencia.repository.ChunkArquivoRepository;
 import br.com.khawantech.files.transferencia.service.ArquivoRedisService;
 import br.com.khawantech.files.transferencia.service.ArquivoSecurityPolicyService;
+import br.com.khawantech.files.transferencia.service.MediaMetadataService;
 import br.com.khawantech.files.transferencia.service.MinioService;
 import br.com.khawantech.files.transferencia.service.ProgressoUploadRedisService;
 import br.com.khawantech.files.transferencia.service.SessaoService;
@@ -42,6 +43,7 @@ public class ArquivoSecurityListener {
     private final ArquivoRedisService arquivoRedisService;
     private final ProgressoUploadRedisService progressoRedisService;
     private final SessaoService sessaoService;
+    private final MediaMetadataService mediaMetadataService;
     private final RabbitTemplate rabbitTemplate;
 
     @RabbitListener(queues = RabbitConfig.QUEUE_ARQUIVO_SECURITY)
@@ -82,6 +84,14 @@ public class ArquivoSecurityListener {
                 arquivo.getTotalChunks(),
                 analise.tipoMimeDetectado()
             );
+
+            MediaMetadataService.MediaMetadataResult metadadosCompletos = mediaMetadataService.extrair(caminhoFinal, analise.tipoMimeDetectado());
+            if (!metadadosCompletos.metadadosTika().isEmpty()) {
+                arquivo.setMetadadosTika(metadadosCompletos.metadadosTika());
+            }
+            if (!metadadosCompletos.metadadosTecnicos().isEmpty()) {
+                arquivo.setMetadadosTecnicos(metadadosCompletos.metadadosTecnicos());
+            }
 
             arquivo.setCaminhoMinio(caminhoFinal);
             arquivo.setTipoMime(analise.tipoMimeDetectado());

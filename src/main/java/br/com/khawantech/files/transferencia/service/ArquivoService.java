@@ -397,6 +397,9 @@ public class ArquivoService {
             .conversivel(arquivo.getConversivel())
             .arquivoOriginalId(arquivo.getArquivoOriginalId())
             .formatoConvertido(arquivo.getFormatoConvertido())
+            .tag(arquivo.getTag())
+            .otimizacaoNivel(arquivo.getOtimizacaoNivel())
+            .tamanhoOriginalBytes(arquivo.getTamanhoOriginalBytes())
             .build();
     }
 

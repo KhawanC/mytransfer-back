@@ -1,0 +1,20 @@
+package br.com.khawantech.files.transferencia.dto;
+
+import java.io.Serializable;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ImageOptimizationEvent implements Serializable {
+
+    private String arquivoId;
+    private String sessaoId;
+    private Integer nivel;
+    private String solicitanteId;
+}
