@@ -6,13 +6,14 @@ import java.util.concurrent.ExecutionException;
 
 import org.springframework.stereotype.Service;
 
-import br.com.khawantech.files.assinatura.config.WooviProperties;
-import br.com.khawantech.files.assinatura.entity.PlanoAssinatura;
 import com.openpix.sdk.Charge;
 import com.openpix.sdk.ChargeBuilder;
 import com.openpix.sdk.ChargeResponse;
 import com.openpix.sdk.ChargeType;
 import com.openpix.sdk.WooviSDK;
+
+import br.com.khawantech.files.assinatura.config.WooviProperties;
+import br.com.khawantech.files.assinatura.entity.PlanoAssinatura;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -29,7 +30,7 @@ public class WooviClient {
 
         WooviSDK sdk = new WooviSDK(apiKey).configureIgnoreUnknownKeysJson(true);
 
-        Instant expiraEm = Instant.now().plus(10, ChronoUnit.MINUTES);
+        Instant expiraEm = Instant.now().plus(15, ChronoUnit.MINUTES);
 
         ChargeBuilder builder = new ChargeBuilder()
             .correlationID(referencia)
