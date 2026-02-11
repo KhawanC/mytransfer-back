@@ -11,7 +11,6 @@ import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.index.IndexInfo;
 
 import java.util.List;
-import java.util.Objects;
 
 @ChangeUnit(id = "V003_CreateArquivosCollection", order = "003", author = "system")
 public class V003CreateArquivosCollection {
@@ -68,11 +67,41 @@ public class V003CreateArquivosCollection {
 
     private boolean hasIndexOnKeys(List<IndexInfo> indexes, Document keys) {
         for (IndexInfo index : indexes) {
-            if (Objects.equals(index.getIndexFieldsObject(), keys)) {
+            if (indexFieldsMatch(index.getIndexFields(), keys)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private boolean indexFieldsMatch(List<IndexInfo.IndexField> fields, Document keys) {
+        if (fields.size() != keys.size()) {
+            return false;
+        }
+
+        int i = 0;
+        for (var entry : keys.entrySet()) {
+            IndexInfo.IndexField field = fields.get(i);
+            if (!entry.getKey().equals(field.getKey())) {
+                return false;
+            }
+
+            int direction = entry.getValue() instanceof Number
+                ? ((Number) entry.getValue()).intValue()
+                : 1;
+            String fieldDirection = String.valueOf(field.getDirection());
+            if (direction < 0) {
+                if (field.getDirection() != null && !"DESC".equalsIgnoreCase(fieldDirection)) {
+                    return false;
+                }
+            } else if (field.getDirection() != null && !"ASC".equalsIgnoreCase(fieldDirection)) {
+                return false;
+            }
+
+            i++;
+        }
+
+        return true;
     }
 
     private void dropIndexIfExists(MongoTemplate mongoTemplate, String indexName) {
