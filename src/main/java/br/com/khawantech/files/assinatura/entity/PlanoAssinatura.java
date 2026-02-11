@@ -23,4 +23,6 @@ public class PlanoAssinatura {
     private int precoCentavos;
 
     private int duracaoDias;
+
+    private boolean recomendado;
 }

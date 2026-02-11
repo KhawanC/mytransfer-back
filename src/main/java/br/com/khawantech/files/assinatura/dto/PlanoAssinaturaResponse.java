@@ -14,4 +14,5 @@ public class PlanoAssinaturaResponse {
     private String nome;
     private int precoCentavos;
     private int duracaoDias;
+    private boolean recomendado;
 }

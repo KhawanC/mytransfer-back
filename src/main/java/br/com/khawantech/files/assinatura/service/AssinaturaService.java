@@ -46,6 +46,7 @@ public class AssinaturaService {
                 .nome(plano.getNome())
                 .precoCentavos(plano.getPrecoCentavos())
                 .duracaoDias(plano.getDuracaoDias())
+                .recomendado(plano.isRecomendado())
                 .build())
             .toList();
     }
