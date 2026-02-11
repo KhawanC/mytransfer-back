@@ -1,12 +1,13 @@
 package br.com.khawantech.files.assinatura.controller;
 
-import java.util.List;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,11 +41,13 @@ public class AssinaturaController {
     private final RabbitTemplate rabbitTemplate;
 
     @GetMapping("/planos")
-    public ResponseEntity<List<PlanoAssinaturaResponse>> listarPlanos() {
+    @PreAuthorize("!hasRole('GUEST')")
+    public ResponseEntity<List<PlanoAssinaturaResponse>> listarPlanos(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(assinaturaService.listarPlanos());
     }
 
     @PostMapping("/checkout")
+    @PreAuthorize("!hasRole('GUEST')")
     public ResponseEntity<CheckoutResponse> criarCheckout(
             @Valid @RequestBody CheckoutRequest request,
             @AuthenticationPrincipal User user) {
@@ -53,16 +56,19 @@ public class AssinaturaController {
     }
 
     @GetMapping("/status")
+    @PreAuthorize("!hasRole('GUEST')")
     public ResponseEntity<AssinaturaStatusResponse> obterStatus(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(assinaturaService.buscarStatus(user.getId()));
     }
 
     @PostMapping("/celebration")
+    @PreAuthorize("!hasRole('GUEST')")
     public ResponseEntity<AssinaturaStatusResponse> marcarCelebracao(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(assinaturaService.marcarCelebracao(user.getId()));
     }
 
     @PostMapping("/cancelar")
+    @PreAuthorize("!hasRole('GUEST')")
     public ResponseEntity<AssinaturaStatusResponse> cancelar(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(assinaturaService.cancelarAssinatura(user.getId()));
     }

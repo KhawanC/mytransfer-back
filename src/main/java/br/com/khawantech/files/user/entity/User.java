@@ -80,7 +80,11 @@ public class User implements UserDetails {
     @Override
     @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        UserType effectiveType = userType == null ? UserType.FREE : userType;
+        return List.of(
+            new SimpleGrantedAuthority("ROLE_USER"),
+            new SimpleGrantedAuthority("ROLE_" + effectiveType.name())
+        );
     }
 
     @Override
