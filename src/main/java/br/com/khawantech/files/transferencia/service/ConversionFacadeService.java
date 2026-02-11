@@ -1,5 +1,6 @@
 package br.com.khawantech.files.transferencia.service;
 
+import br.com.khawantech.files.transferencia.dto.FormatoAudio;
 import br.com.khawantech.files.transferencia.dto.FormatoImagem;
 import br.com.khawantech.files.transferencia.dto.FormatoVideo;
 import br.com.khawantech.files.transferencia.entity.Arquivo;
@@ -24,11 +25,14 @@ public class ConversionFacadeService {
     private final ArquivoRepository arquivoRepository;
     private final ImageConversionService imageConversionService;
     private final VideoConversionService videoConversionService;
+    private final AudioConversionService audioConversionService;
 
     private static final List<StatusArquivo> STATUS_CONVERSAO_ATIVOS = List.of(StatusArquivo.PROCESSANDO, StatusArquivo.COMPLETO);
 
     public boolean isConversivel(String mimeType) {
-        return imageConversionService.isImagemConversivel(mimeType) || videoConversionService.isVideoConversivel(mimeType);
+        return imageConversionService.isImagemConversivel(mimeType) 
+            || videoConversionService.isVideoConversivel(mimeType)
+            || audioConversionService.isAudioConversivel(mimeType);
     }
 
     public List<String> getFormatosDisponiveis(String arquivoId) {
@@ -54,6 +58,13 @@ public class ConversionFacadeService {
                 .toList();
         }
 
+        if (FormatoAudio.isAudioConversivel(mimeType)) {
+            return audioConversionService.getFormatosDisponiveis(mimeType).stream()
+                .filter(formato -> !formatosConvertidos.contains(formato.name()))
+                .map(Enum::name)
+                .toList();
+        }
+
         return imageConversionService.getFormatosDisponiveis(mimeType).stream()
             .filter(formato -> !formatosConvertidos.contains(formato.name()))
             .map(Enum::name)
@@ -69,6 +80,14 @@ public class ConversionFacadeService {
                 throw new ConversaoNaoSuportadaException("Formato de conversão não disponível para este arquivo");
             }
             videoConversionService.converterVideo(arquivoId, formatoDestino, solicitante);
+            return;
+        }
+
+        if (FormatoAudio.isAudioConversivel(arquivo.getTipoMime())) {
+            if (FormatoAudio.fromApiValue(formatoDestino).isEmpty()) {
+                throw new ConversaoNaoSuportadaException("Formato de conversão não disponível para este arquivo");
+            }
+            audioConversionService.converterAudio(arquivoId, formatoDestino, solicitante);
             return;
         }
 

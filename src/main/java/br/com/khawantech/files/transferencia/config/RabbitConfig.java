@@ -33,6 +33,7 @@ public class RabbitConfig {
     public static final String QUEUE_SESSAO_ATUALIZADA = "transferencia.sessao.atualizada";
     public static final String QUEUE_IMAGE_CONVERSION = "transferencia.image.conversion";
     public static final String QUEUE_VIDEO_CONVERSION = "transferencia.video.conversion";
+    public static final String QUEUE_AUDIO_CONVERSION = "transferencia.audio.conversion";
     public static final String QUEUE_IMAGE_OPTIMIZATION = "transferencia.image.optimization";
     public static final String QUEUE_VIDEO_OPTIMIZATION = "transferencia.video.optimization";
     public static final String QUEUE_ARQUIVO_SECURITY = "transferencia.arquivo.security";
@@ -43,6 +44,7 @@ public class RabbitConfig {
     public static final String QUEUE_SESSAO_DLQ = "transferencia.sessao.dlq";
     public static final String QUEUE_IMAGE_CONVERSION_DLQ = "transferencia.image.conversion.dlq";
     public static final String QUEUE_VIDEO_CONVERSION_DLQ = "transferencia.video.conversion.dlq";
+    public static final String QUEUE_AUDIO_CONVERSION_DLQ = "transferencia.audio.conversion.dlq";
     public static final String QUEUE_IMAGE_OPTIMIZATION_DLQ = "transferencia.image.optimization.dlq";
     public static final String QUEUE_VIDEO_OPTIMIZATION_DLQ = "transferencia.video.optimization.dlq";
     public static final String QUEUE_ARQUIVO_SECURITY_DLQ = "transferencia.arquivo.security.dlq";
@@ -53,6 +55,7 @@ public class RabbitConfig {
     public static final String ROUTING_KEY_SESSAO = "sessao.atualizada";
     public static final String ROUTING_KEY_IMAGE_CONVERSION = "image.conversion";
     public static final String ROUTING_KEY_VIDEO_CONVERSION = "video.conversion";
+    public static final String ROUTING_KEY_AUDIO_CONVERSION = "audio.conversion";
     public static final String ROUTING_KEY_IMAGE_OPTIMIZATION = "image.optimization";
     public static final String ROUTING_KEY_VIDEO_OPTIMIZATION = "video.optimization";
     public static final String ROUTING_KEY_ARQUIVO_SECURITY = "arquivo.security";
@@ -63,6 +66,7 @@ public class RabbitConfig {
     public static final String ROUTING_KEY_SESSAO_DLQ = "sessao.dlq";
     public static final String ROUTING_KEY_IMAGE_CONVERSION_DLQ = "image.conversion.dlq";
     public static final String ROUTING_KEY_VIDEO_CONVERSION_DLQ = "video.conversion.dlq";
+    public static final String ROUTING_KEY_AUDIO_CONVERSION_DLQ = "audio.conversion.dlq";
     public static final String ROUTING_KEY_IMAGE_OPTIMIZATION_DLQ = "image.optimization.dlq";
     public static final String ROUTING_KEY_VIDEO_OPTIMIZATION_DLQ = "video.optimization.dlq";
     public static final String ROUTING_KEY_ARQUIVO_SECURITY_DLQ = "arquivo.security.dlq";
@@ -115,6 +119,14 @@ public class RabbitConfig {
         return QueueBuilder.durable(QUEUE_VIDEO_CONVERSION)
             .withArgument("x-dead-letter-exchange", EXCHANGE_DLQ)
             .withArgument("x-dead-letter-routing-key", ROUTING_KEY_VIDEO_CONVERSION_DLQ)
+            .build();
+    }
+
+    @Bean
+    public Queue audioConversionQueue() {
+        return QueueBuilder.durable(QUEUE_AUDIO_CONVERSION)
+            .withArgument("x-dead-letter-exchange", EXCHANGE_DLQ)
+            .withArgument("x-dead-letter-routing-key", ROUTING_KEY_AUDIO_CONVERSION_DLQ)
             .build();
     }
 
@@ -176,6 +188,11 @@ public class RabbitConfig {
     }
 
     @Bean
+    public Queue audioConversionDlqQueue() {
+        return QueueBuilder.durable(QUEUE_AUDIO_CONVERSION_DLQ).build();
+    }
+
+    @Bean
     public Queue imageOptimizationDlqQueue() {
         return QueueBuilder.durable(QUEUE_IMAGE_OPTIMIZATION_DLQ).build();
     }
@@ -221,6 +238,11 @@ public class RabbitConfig {
     }
 
     @Bean
+    public Binding audioConversionBinding(Queue audioConversionQueue, DirectExchange transferenciaExchange) {
+        return BindingBuilder.bind(audioConversionQueue).to(transferenciaExchange).with(ROUTING_KEY_AUDIO_CONVERSION);
+    }
+
+    @Bean
     public Binding imageOptimizationBinding(Queue imageOptimizationQueue, DirectExchange transferenciaExchange) {
         return BindingBuilder.bind(imageOptimizationQueue).to(transferenciaExchange).with(ROUTING_KEY_IMAGE_OPTIMIZATION);
     }
@@ -263,6 +285,11 @@ public class RabbitConfig {
     @Bean
     public Binding videoConversionDlqBinding(Queue videoConversionDlqQueue, DirectExchange dlqExchange) {
         return BindingBuilder.bind(videoConversionDlqQueue).to(dlqExchange).with(ROUTING_KEY_VIDEO_CONVERSION_DLQ);
+    }
+
+    @Bean
+    public Binding audioConversionDlqBinding(Queue audioConversionDlqQueue, DirectExchange dlqExchange) {
+        return BindingBuilder.bind(audioConversionDlqQueue).to(dlqExchange).with(ROUTING_KEY_AUDIO_CONVERSION_DLQ);
     }
 
     @Bean
