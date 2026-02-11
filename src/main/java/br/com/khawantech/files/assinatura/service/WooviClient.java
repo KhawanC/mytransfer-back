@@ -30,7 +30,7 @@ public class WooviClient {
 
         WooviSDK sdk = new WooviSDK(apiKey).configureIgnoreUnknownKeysJson(true);
 
-        Instant expiraEm = Instant.now().plus(15, ChronoUnit.MINUTES);
+        Instant expiraEm = Instant.now().plus(16, ChronoUnit.MINUTES);
 
         ChargeBuilder builder = new ChargeBuilder()
             .correlationID(referencia)
