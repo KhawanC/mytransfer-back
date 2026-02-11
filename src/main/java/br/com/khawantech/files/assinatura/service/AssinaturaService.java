@@ -10,6 +10,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.openpix.sdk.OpenSSL;
+
 import br.com.khawantech.files.assinatura.dto.AssinaturaStatusResponse;
 import br.com.khawantech.files.assinatura.dto.CheckoutResponse;
 import br.com.khawantech.files.assinatura.dto.PlanoAssinaturaResponse;
@@ -18,12 +20,11 @@ import br.com.khawantech.files.assinatura.entity.PlanoAssinatura;
 import br.com.khawantech.files.assinatura.entity.StatusAssinatura;
 import br.com.khawantech.files.assinatura.repository.AssinaturaRepository;
 import br.com.khawantech.files.assinatura.repository.PlanoAssinaturaRepository;
+import br.com.khawantech.files.transferencia.dto.NotificacaoResponse;
+import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
 import br.com.khawantech.files.user.entity.User;
 import br.com.khawantech.files.user.entity.UserType;
 import br.com.khawantech.files.user.service.UserService;
-import br.com.khawantech.files.transferencia.dto.NotificacaoResponse;
-import br.com.khawantech.files.transferencia.service.WebSocketNotificationService;
-import com.openpix.sdk.OpenSSL;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -113,17 +114,6 @@ public class AssinaturaService {
             .orElseThrow(() -> new IllegalStateException("Assinatura não encontrada"));
 
         assinatura.setCelebracaoExibida(true);
-        repository.save(assinatura);
-
-        return toStatusResponse(assinatura);
-    }
-
-    @Transactional
-    public AssinaturaStatusResponse cancelarAssinatura(String usuarioId) {
-        Assinatura assinatura = repository.findFirstByUsuarioIdOrderByCriadaEmDesc(usuarioId)
-            .orElseThrow(() -> new IllegalStateException("Assinatura não encontrada"));
-
-        assinatura.setCancelarAoFinalPeriodo(true);
         repository.save(assinatura);
 
         return toStatusResponse(assinatura);
@@ -234,7 +224,6 @@ public class AssinaturaService {
                 .qrCodeImageUrl(assinatura.getQrCodeImageUrl())
                 .paymentLinkUrl(assinatura.getPagamentoLinkUrl())
                 .pagamentoExpiraEm(assinatura.getPagamentoExpiraEm())
-            .cancelarAoFinalPeriodo(assinatura.isCancelarAoFinalPeriodo())
             .celebracaoExibida(assinatura.isCelebracaoExibida())
             .build();
     }

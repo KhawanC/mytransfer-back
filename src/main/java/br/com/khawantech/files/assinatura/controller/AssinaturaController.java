@@ -67,12 +67,6 @@ public class AssinaturaController {
         return ResponseEntity.ok(assinaturaService.marcarCelebracao(user.getId()));
     }
 
-    @PostMapping("/cancelar")
-    @PreAuthorize("!hasRole('GUEST')")
-    public ResponseEntity<AssinaturaStatusResponse> cancelar(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(assinaturaService.cancelarAssinatura(user.getId()));
-    }
-
     @PostMapping("/webhook")
     public ResponseEntity<WebhookResponse> webhook(
             @RequestBody String payload,

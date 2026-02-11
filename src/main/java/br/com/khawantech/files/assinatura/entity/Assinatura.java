@@ -55,9 +55,6 @@ public class Assinatura {
     private Instant pagamentoCriadoEm;
 
     @Builder.Default
-    private boolean cancelarAoFinalPeriodo = false;
-
-    @Builder.Default
     private boolean celebracaoExibida = false;
 
     private String ultimoEvento;

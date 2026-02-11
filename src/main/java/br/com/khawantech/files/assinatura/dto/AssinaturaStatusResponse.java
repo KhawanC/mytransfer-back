@@ -23,6 +23,5 @@ public class AssinaturaStatusResponse {
     private String qrCodeImageUrl;
     private String paymentLinkUrl;
     private Instant pagamentoExpiraEm;
-    private boolean cancelarAoFinalPeriodo;
     private boolean celebracaoExibida;
 }
