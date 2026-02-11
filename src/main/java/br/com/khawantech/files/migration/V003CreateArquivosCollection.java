@@ -8,6 +8,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.CompoundIndexDefinition;
 import org.springframework.data.mongodb.core.index.Index;
+import org.springframework.data.mongodb.core.index.IndexInfo;
+
+import java.util.List;
+import java.util.Objects;
 
 @ChangeUnit(id = "V003_CreateArquivosCollection", order = "003", author = "system")
 public class V003CreateArquivosCollection {
@@ -20,35 +24,64 @@ public class V003CreateArquivosCollection {
             mongoTemplate.createCollection(COLLECTION_NAME);
         }
 
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new Index()
-                .on("sessaoId", Sort.Direction.ASC)
-                .named("sessao_idx"));
+        List<IndexInfo> indexes = mongoTemplate.indexOps(COLLECTION_NAME).getIndexInfo();
 
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new Index()
-                .on("hashConteudo", Sort.Direction.ASC)
-                .named("hash_conteudo_idx"));
+        if (!hasIndexOnKeys(indexes, new Document("sessaoId", 1))) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new Index()
+                    .on("sessaoId", Sort.Direction.ASC)
+                    .named("sessao_idx"));
+        }
 
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new Index()
-                .on("status", Sort.Direction.ASC)
-                .named("status_idx"));
+        if (!hasIndexOnKeys(indexes, new Document("hashConteudo", 1))) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new Index()
+                    .on("hashConteudo", Sort.Direction.ASC)
+                    .named("hash_conteudo_idx"));
+        }
+
+        if (!hasIndexOnKeys(indexes, new Document("status", 1))) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new Index()
+                    .on("status", Sort.Direction.ASC)
+                    .named("status_idx"));
+        }
 
         Document compoundIndexKeys = new Document()
             .append("sessaoId", 1)
             .append("status", 1);
         
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new CompoundIndexDefinition(compoundIndexKeys)
-                .named("sessao_status_idx"));
+        if (!hasIndexOnKeys(indexes, compoundIndexKeys)) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new CompoundIndexDefinition(compoundIndexKeys)
+                    .named("sessao_status_idx"));
+        }
     }
 
     @RollbackExecution
     public void rollback(MongoTemplate mongoTemplate) {
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("sessao_idx");
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("hash_conteudo_idx");
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("status_idx");
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("sessao_status_idx");
+        dropIndexIfExists(mongoTemplate, "sessao_idx");
+        dropIndexIfExists(mongoTemplate, "hash_conteudo_idx");
+        dropIndexIfExists(mongoTemplate, "status_idx");
+        dropIndexIfExists(mongoTemplate, "sessao_status_idx");
+    }
+
+    private boolean hasIndexOnKeys(List<IndexInfo> indexes, Document keys) {
+        for (IndexInfo index : indexes) {
+            if (Objects.equals(index.getIndexFieldsObject(), keys)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void dropIndexIfExists(MongoTemplate mongoTemplate, String indexName) {
+        List<IndexInfo> indexes = mongoTemplate.indexOps(COLLECTION_NAME).getIndexInfo();
+        for (IndexInfo index : indexes) {
+            if (indexName.equals(index.getName())) {
+                mongoTemplate.indexOps(COLLECTION_NAME).dropIndex(indexName);
+                return;
+            }
+        }
     }
 }

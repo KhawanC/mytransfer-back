@@ -7,7 +7,10 @@ import org.bson.Document;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
+import org.springframework.data.mongodb.core.index.IndexInfo;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @ChangeUnit(id = "V002_CreateSessoesCollection", order = "002", author = "system")
@@ -21,41 +24,72 @@ public class V002CreateSessoesCollection {
             mongoTemplate.createCollection(COLLECTION_NAME);
         }
 
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new Index()
-                .on("hashConexao", Sort.Direction.ASC)
-                .unique()
-                .named("hash_conexao_unique_idx"));
+        List<IndexInfo> indexes = mongoTemplate.indexOps(COLLECTION_NAME).getIndexInfo();
 
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new Index()
-                .on("usuarioCriadorId", Sort.Direction.ASC)
-                .named("usuario_criador_idx"));
+        if (!hasIndexOnKeys(indexes, new Document("hashConexao", 1))) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new Index()
+                    .on("hashConexao", Sort.Direction.ASC)
+                    .unique()
+                    .named("hash_conexao_unique_idx"));
+        }
 
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new Index()
-                .on("usuarioConvidadoId", Sort.Direction.ASC)
-                .sparse()
-                .named("usuario_convidado_idx"));
+        if (!hasIndexOnKeys(indexes, new Document("usuarioCriadorId", 1))) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new Index()
+                    .on("usuarioCriadorId", Sort.Direction.ASC)
+                    .named("usuario_criador_idx"));
+        }
 
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new Index()
-                .on("status", Sort.Direction.ASC)
-                .named("status_idx"));
+        if (!hasIndexOnKeys(indexes, new Document("usuarioConvidadoId", 1))) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new Index()
+                    .on("usuarioConvidadoId", Sort.Direction.ASC)
+                    .sparse()
+                    .named("usuario_convidado_idx"));
+        }
 
-        mongoTemplate.indexOps(COLLECTION_NAME)
-            .createIndex(new Index()
-                .on("expiraEm", Sort.Direction.ASC)
-                .expire(0, TimeUnit.SECONDS)
-                .named("expira_em_ttl_idx"));
+        if (!hasIndexOnKeys(indexes, new Document("status", 1))) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new Index()
+                    .on("status", Sort.Direction.ASC)
+                    .named("status_idx"));
+        }
+
+        if (!hasIndexOnKeys(indexes, new Document("expiraEm", 1))) {
+            mongoTemplate.indexOps(COLLECTION_NAME)
+                .createIndex(new Index()
+                    .on("expiraEm", Sort.Direction.ASC)
+                    .expire(0, TimeUnit.SECONDS)
+                    .named("expira_em_ttl_idx"));
+        }
     }
 
     @RollbackExecution
     public void rollback(MongoTemplate mongoTemplate) {
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("hash_conexao_unique_idx");
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("usuario_criador_idx");
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("usuario_convidado_idx");
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("status_idx");
-        mongoTemplate.indexOps(COLLECTION_NAME).dropIndex("expira_em_ttl_idx");
+        dropIndexIfExists(mongoTemplate, "hash_conexao_unique_idx");
+        dropIndexIfExists(mongoTemplate, "usuario_criador_idx");
+        dropIndexIfExists(mongoTemplate, "usuario_convidado_idx");
+        dropIndexIfExists(mongoTemplate, "status_idx");
+        dropIndexIfExists(mongoTemplate, "expira_em_ttl_idx");
+    }
+
+    private boolean hasIndexOnKeys(List<IndexInfo> indexes, Document keys) {
+        for (IndexInfo index : indexes) {
+            if (Objects.equals(index.getIndexFieldsObject(), keys)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void dropIndexIfExists(MongoTemplate mongoTemplate, String indexName) {
+        List<IndexInfo> indexes = mongoTemplate.indexOps(COLLECTION_NAME).getIndexInfo();
+        for (IndexInfo index : indexes) {
+            if (indexName.equals(index.getName())) {
+                mongoTemplate.indexOps(COLLECTION_NAME).dropIndex(indexName);
+                return;
+            }
+        }
     }
 }

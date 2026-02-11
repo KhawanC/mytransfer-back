@@ -7,10 +7,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.CompoundIndexDefinition;
 import org.springframework.data.mongodb.core.index.Index;
+import org.springframework.data.mongodb.core.index.IndexInfo;
 
 import io.mongock.api.annotations.ChangeUnit;
 import io.mongock.api.annotations.Execution;
 import io.mongock.api.annotations.RollbackExecution;
+
+import java.util.List;
+import java.util.Objects;
 
 @ChangeUnit(id = "V007_CreateChatCollections", order = "007", author = "system")
 public class V007CreateChatCollections {
@@ -32,50 +36,85 @@ public class V007CreateChatCollections {
             .append("sessaoId", 1)
             .append("criadoEm", 1);
 
-        mongoTemplate.indexOps(MENSAGENS_COLLECTION)
-            .createIndex(new CompoundIndexDefinition(mensagensCompound)
-                .named("sessao_criado_em_idx"));
+        List<IndexInfo> mensagensIndexes = mongoTemplate.indexOps(MENSAGENS_COLLECTION).getIndexInfo();
 
-        mongoTemplate.indexOps(MENSAGENS_COLLECTION)
-            .createIndex(new Index()
-                .on("sessaoId", Sort.Direction.ASC)
-                .named("sessao_idx"));
+        if (!hasIndexOnKeys(mensagensIndexes, mensagensCompound)) {
+            mongoTemplate.indexOps(MENSAGENS_COLLECTION)
+                .createIndex(new CompoundIndexDefinition(mensagensCompound)
+                    .named("sessao_criado_em_idx"));
+        }
 
-        mongoTemplate.indexOps(MENSAGENS_COLLECTION)
-            .createIndex(new Index()
-                .on("remetenteId", Sort.Direction.ASC)
-                .named("remetente_idx"));
+        if (!hasIndexOnKeys(mensagensIndexes, new Document("sessaoId", 1))) {
+            mongoTemplate.indexOps(MENSAGENS_COLLECTION)
+                .createIndex(new Index()
+                    .on("sessaoId", Sort.Direction.ASC)
+                    .named("sessao_idx"));
+        }
 
-        mongoTemplate.indexOps(MENSAGENS_COLLECTION)
-            .createIndex(new Index()
-                .on("expiraEm", Sort.Direction.ASC)
-                .expire(0, TimeUnit.SECONDS)
-                .named("chat_expira_em_ttl_idx"));
+        if (!hasIndexOnKeys(mensagensIndexes, new Document("remetenteId", 1))) {
+            mongoTemplate.indexOps(MENSAGENS_COLLECTION)
+                .createIndex(new Index()
+                    .on("remetenteId", Sort.Direction.ASC)
+                    .named("remetente_idx"));
+        }
+
+        if (!hasIndexOnKeys(mensagensIndexes, new Document("expiraEm", 1))) {
+            mongoTemplate.indexOps(MENSAGENS_COLLECTION)
+                .createIndex(new Index()
+                    .on("expiraEm", Sort.Direction.ASC)
+                    .expire(0, TimeUnit.SECONDS)
+                    .named("chat_expira_em_ttl_idx"));
+        }
 
         Document leiturasCompound = new Document()
             .append("sessaoId", 1)
             .append("usuarioId", 1);
 
-        mongoTemplate.indexOps(LEITURAS_COLLECTION)
-            .createIndex(new CompoundIndexDefinition(leiturasCompound)
-                .unique()
-                .named("sessao_usuario_unique_idx"));
+        List<IndexInfo> leiturasIndexes = mongoTemplate.indexOps(LEITURAS_COLLECTION).getIndexInfo();
 
-        mongoTemplate.indexOps(LEITURAS_COLLECTION)
-            .createIndex(new Index()
-                .on("expiraEm", Sort.Direction.ASC)
-                .expire(0, TimeUnit.SECONDS)
-                .named("chat_leitura_expira_em_ttl_idx"));
+        if (!hasIndexOnKeys(leiturasIndexes, leiturasCompound)) {
+            mongoTemplate.indexOps(LEITURAS_COLLECTION)
+                .createIndex(new CompoundIndexDefinition(leiturasCompound)
+                    .unique()
+                    .named("sessao_usuario_unique_idx"));
+        }
+
+        if (!hasIndexOnKeys(leiturasIndexes, new Document("expiraEm", 1))) {
+            mongoTemplate.indexOps(LEITURAS_COLLECTION)
+                .createIndex(new Index()
+                    .on("expiraEm", Sort.Direction.ASC)
+                    .expire(0, TimeUnit.SECONDS)
+                    .named("chat_leitura_expira_em_ttl_idx"));
+        }
     }
 
     @RollbackExecution
     public void rollback(MongoTemplate mongoTemplate) {
-        mongoTemplate.indexOps(MENSAGENS_COLLECTION).dropIndex("sessao_criado_em_idx");
-        mongoTemplate.indexOps(MENSAGENS_COLLECTION).dropIndex("sessao_idx");
-        mongoTemplate.indexOps(MENSAGENS_COLLECTION).dropIndex("remetente_idx");
-        mongoTemplate.indexOps(MENSAGENS_COLLECTION).dropIndex("chat_expira_em_ttl_idx");
+        dropIndexIfExists(mongoTemplate, MENSAGENS_COLLECTION, "sessao_criado_em_idx");
+        dropIndexIfExists(mongoTemplate, MENSAGENS_COLLECTION, "sessao_idx");
+        dropIndexIfExists(mongoTemplate, MENSAGENS_COLLECTION, "remetente_idx");
+        dropIndexIfExists(mongoTemplate, MENSAGENS_COLLECTION, "chat_expira_em_ttl_idx");
 
-        mongoTemplate.indexOps(LEITURAS_COLLECTION).dropIndex("sessao_usuario_unique_idx");
-        mongoTemplate.indexOps(LEITURAS_COLLECTION).dropIndex("chat_leitura_expira_em_ttl_idx");
+        dropIndexIfExists(mongoTemplate, LEITURAS_COLLECTION, "sessao_usuario_unique_idx");
+        dropIndexIfExists(mongoTemplate, LEITURAS_COLLECTION, "chat_leitura_expira_em_ttl_idx");
+    }
+
+    private boolean hasIndexOnKeys(List<IndexInfo> indexes, Document keys) {
+        for (IndexInfo index : indexes) {
+            if (Objects.equals(index.getIndexFieldsObject(), keys)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void dropIndexIfExists(MongoTemplate mongoTemplate, String collection, String indexName) {
+        List<IndexInfo> indexes = mongoTemplate.indexOps(collection).getIndexInfo();
+        for (IndexInfo index : indexes) {
+            if (indexName.equals(index.getName())) {
+                mongoTemplate.indexOps(collection).dropIndex(indexName);
+                return;
+            }
+        }
     }
 }
